@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>An Introduction to Z80 Assembly Language: A Guide for High-Level Programmers</title>
+<style>
+:root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --accent: #e94560;
+    --accent2: #533483;
+    --text: #e0e0e0;
+    --text-dim: #a0a0b0;
+    --code-bg: #0d1117;
+    --code-border: #30363d;
+    --link: #58a6ff;
+    --heading: #f0f0f0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+h1, h2, h3 { color: var(--heading); margin-top: 2.5rem; margin-bottom: 1rem; }
+h1 { font-size: 2rem; border-bottom: 3px solid var(--accent); padding-bottom: 0.5rem; }
+h2 { font-size: 1.5rem; border-bottom: 2px solid var(--accent2); padding-bottom: 0.3rem; }
+h3 { font-size: 1.2rem; color: var(--accent); }
+p { margin-bottom: 1rem; }
+.title-block {
+    text-align: center;
+    padding: 3rem 1rem;
+    margin-bottom: 2rem;
+    background: linear-gradient(135deg, var(--surface), var(--surface2));
+    border-radius: 12px;
+    border: 1px solid var(--accent2);
+}
+.title-block h1 { border: none; font-size: 2.5rem; margin-top: 0; }
+.title-block .subtitle { font-size: 1.2rem; color: var(--text-dim); margin-top: 0.5rem; }
+.title-block .assembler { font-size: 0.9rem; color: var(--accent); font-family: monospace; margin-top: 1rem; }
+nav#toc {
+    background: var(--surface);
+    border: 1px solid var(--code-border);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 3rem;
+}
+nav#toc h2 { margin-top: 0; border-color: var(--accent); }
+nav#toc ul { list-style: none; padding-left: 0; }
+nav#toc > ul > li { margin-bottom: 0.4rem; }
+nav#toc ul ul { padding-left: 1.5rem; }
+nav#toc ul ul li { margin-bottom: 0.2rem; }
+nav#toc a { color: var(--link); text-decoration: none; }
+nav#toc a:hover { text-decoration: underline; }
+pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    margin-bottom: 1.2rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+code {
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    color: #7ee787;
+}
+pre code { color: #c9d1d9; }
+.comment { color: #8b949e; }
+.keyword { color: #ff7b72; }
+.label { color: #d2a8ff; }
+.string { color: #a5d6ff; }
+.number { color: #79c0ff; }
+.directive { color: #ffa657; }
+.bold-text { font-weight: 700; }
+a { color: var(--link); }
+.back-to-top {
+    display: inline-block;
+    margin-top: 0.3rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-decoration: none;
+}
+.back-to-top:hover { color: var(--link); }
+section { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--code-border); }
+section:last-child { border-bottom: none; }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+}
+th {
+    text-align: left;
+    padding: 0.5rem;
+    color: var(--heading);
+    border-bottom: 2px solid var(--accent);
+}
+td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--code-border);
+}
+tr.highlight-row {
+    background: var(--surface);
+}
+</style>
+</head>
+<body>
+
+<div class="title-block">
+<h1>An Introduction to Z80 Assembly Language</h1>
+<div class="subtitle">A Guide for High-Level Programmers</div>
+<div class="assembler">by Norbert of Norbsoft</div>
+</div>
+
+<nav id="toc">
+<h2>Contents</h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#debug-output-routines">Debug Output Routines</a></li>
+<ul>
+<li><a href="#debug-init">debug_init</a></li>
+<li><a href="#debug-print-char">print_char</a></li>
+<li><a href="#debug-print-string">print_string</a></li>
+<li><a href="#debug-print-number">print_number</a></li>
+<li><a href="#using-the-routines">Putting It All Together</a></li>
+</ul>
+<li><a href="#1-introduction-setup">1. Introduction &amp; Setup</a></li>
+<ul>
+<li><a href="#in-high-level-languages">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-with-pasmo">In Z80 Assembly with Pasmo</a></li>
+<li><a href="#your-workflow">Your Workflow</a></li>
+</ul>
+<li><a href="#2-variables-data-types">2. Variables &amp; Data Types</a></li>
+<ul>
+<li><a href="#in-high-level-languages-2">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly">In Z80 Assembly</a></li>
+<ul>
+<li><a href="#registers">Registers</a></li>
+<li><a href="#data-types">Data Types</a></li>
+<li><a href="#loading-and-storing">Loading and Storing</a></li>
+</ul></ul>
+<li><a href="#3-operators-expressions">3. Operators &amp; Expressions</a></li>
+<ul>
+<li><a href="#in-high-level-languages-3">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-2">In Z80 Assembly</a></li>
+<ul>
+<li><a href="#arithmetic-instructions">Arithmetic Instructions</a></li>
+<li><a href="#logic-instructions">Logic Instructions</a></li>
+<li><a href="#building-an-expression">Building an Expression</a></li>
+</ul></ul>
+<li><a href="#4-control-flow-conditionals">4. Control Flow: Conditionals</a></li>
+<ul>
+<li><a href="#in-high-level-languages-4">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-3">In Z80 Assembly</a></li>
+<ul>
+<li><a href="#the-flags-register">The Flags Register</a></li>
+<li><a href="#conditional-jumps">Conditional Jumps</a></li>
+<li><a href="#comparison">Comparison</a></li>
+<li><a href="#building-an-if-else">Building an If/Else</a></li>
+</ul></ul>
+<li><a href="#5-control-flow-loops">5. Control Flow: Loops</a></li>
+<ul>
+<li><a href="#in-high-level-languages-5">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-4">In Z80 Assembly</a></li>
+<ul>
+<li><a href="#the-djnz-instruction">The DJNZ Instruction</a></li>
+<li><a href="#while-loop">While Loop</a></li>
+<li><a href="#iterating-over-an-array">Iterating Over an Array</a></li>
+</ul></ul>
+<li><a href="#6-functions">6. Functions</a></li>
+<ul>
+<li><a href="#in-high-level-languages-6">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-5">In Z80 Assembly</a></li>
+<ul>
+<li><a href="#basic-subroutine">Basic Subroutine</a></li>
+<li><a href="#the-stack">The Stack</a></li>
+<li><a href="#parameter-passing-conventions">Parameter Passing Conventions</a></li>
+</ul></ul>
+<li><a href="#7-data-structures">7. Data Structures</a></li>
+<ul>
+<li><a href="#in-high-level-languages-7">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-6">In Z80 Assembly</a></li>
+<ul>
+<li><a href="#arrays">Arrays</a></li>
+<li><a href="#structures">Structures</a></li>
+<li><a href="#strings">Strings</a></li>
+</ul></ul>
+<li><a href="#8-input-output">8. Input &amp; Output</a></li>
+<ul>
+<li><a href="#in-high-level-languages-8">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-on-the-zx-spectrum">In Z80 Assembly on the ZX Spectrum</a></li>
+<ul>
+<li><a href="#rom-routines-for-screen-output">ROM Routines for Screen Output</a></li>
+<li><a href="#memory-mapped-i-o">Memory-Mapped I/O</a></li>
+<li><a href="#keyboard-input">Keyboard Input</a></li>
+</ul></ul>
+<li><a href="#9-error-handling">9. Error Handling</a></li>
+<ul>
+<li><a href="#in-high-level-languages-9">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-7">In Z80 Assembly</a></li>
+<ul>
+<li><a href="#return-codes">Return Codes</a></li>
+<li><a href="#interrupts">Interrupts</a></li>
+</ul></ul>
+<li><a href="#10-debugging-problem-solving">10. Debugging &amp; Problem-Solving</a></li>
+<ul>
+<li><a href="#in-high-level-languages-10">In High-Level Languages</a></li>
+<li><a href="#in-z80-assembly-8">In Z80 Assembly</a></li>
+<ul>
+<li><a href="#emulator-debugging">Emulator Debugging</a></li>
+<li><a href="#print-based-debugging">Print-Based Debugging</a></li>
+<li><a href="#common-bug-sources">Common Bug Sources</a></li>
+</ul></ul>
+<li><a href="#11-a-complete-project-verified-counter">11. A Complete Project: Verified Counter</a></li>
+<li><a href="#rst-instructions-and-rom-routines">12. RST Instructions &amp; ROM Routines</a></li>
+<ul>
+<li><a href="#rst-restart-instructions">RST (Restart) Instructions</a></li>
+<li><a href="#the-rst-table">The RST Table</a></li>
+<li><a href="#common-rom-routines">Common ROM Routines</a></li>
+<ul>
+<li><a href="#screen-and-output">Screen &amp; Output</a></li>
+<li><a href="#keyboard-and-input">Keyboard &amp; Input</a></li>
+<li><a href="#sound">Sound</a></li>
+</ul>
+<li><a href="#practical-examples">Practical Examples</a></li>
+</ul>
+<li><a href="#conclusion-what-you-gain">Conclusion: What You Gain</a></li>
+<ul>
+<li><a href="#quick-reference-pasmo-workflow">Quick Reference: Pasmo Workflow</a></li>
+<li><a href="#further-resources">Further Resources</a></li>
+</ul>
+<li><a href="#appendix-debug-output-routine">Appendix: Debug Output Routine</a></li>
+</ul>
+</nav>
+
+<section id="introduction">
+<h1>Introduction</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+<p>If you&#x27;ve spent your programming career in languages like Python, JavaScript, C#, or even C, stepping into Z80 assembly language can feel like travelling back to the bare metal origins of computing. Everything you take for granted—variables, expressions, function calls, loops—must be constructed manually from the most primitive operations imaginable.</p>
+<p>The Z80 is an 8-bit microprocessor designed by Zilog in 1976. It powered countless home computers of the 1980s including the ZX Spectrum, Amstrad CPC, MSX machines, and the TRS-80. It also found its way into arcade machines, embedded systems, and the Nintendo Game Boy (as a modified version). Understanding Z80 assembly gives you direct insight into how computers actually work at the lowest level.</p>
+<p>This guide assumes you can already program. We won&#x27;t explain what a loop is conceptually—we&#x27;ll show you how to build one from nothing but jumps and flags. Each section maps a familiar high-level concept to its Z80 equivalent, highlighting what changes and what stays the same.</p>
+<p class="bold-text">Throughout this guide, all examples are written to be assembled using Pasmo with the --tapbas flag, targeting the ZX Spectrum. This means every example can be assembled into a .tap file with an auto-running BASIC loader, ready to load directly into an emulator such as Fuse.</p>
+</section>
+
+<section id="debug-output-routines">
+<h1>Debug Output Routines</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+<p>Throughout this guide, examples use three simple routines to display values on screen. These are your equivalent of console.log() or print() — a way to see what your code is actually doing. When you add two numbers and want to check the result, or need to verify that a conditional branch went the right way, these routines let you print the answer to the screen.</p>
+<p>The routines use the ZX Spectrum ROM, so they work immediately with Pasmo&#x27;s --tapbas flag. Save the code below as debug_output.asm and include it in your programs with INCLUDE &quot;debug_output.asm&quot;, or paste it directly at the end of your source files.</p>
+<p>Don&#x27;t worry if some of the assembly instructions below are unfamiliar — they are all explained in detail in the chapters that follow. For now, the important thing is understanding what each routine does and how to call it.</p>
+
+<h2 id="debug-init">debug_init</h2>
+<p>The ZX Spectrum can send output to different destinations — the main screen, the lower screen (where INPUT prompts appear), or a printer. The Spectrum calls these &#x27;channels&#x27; and numbers them: channel 1 is the lower screen, channel 2 is the main screen, and channel 3 is the printer. Before you can print anything, you must tell the Spectrum which channel to use.</p>
+<p>The ROM has a built-in routine at address 0x1601 that opens a channel. You tell it which one by putting the channel number in the A register before calling it. We want the main screen, so we put 2 in A.</p>
+<pre><code><span class="label">debug_init</span>:
+    <span class="keyword">LD</span> A, 2             <span class="comment">; Put 2 in A (channel 2 = main screen)</span>
+    <span class="keyword">CALL</span> <span class="number">0x1601</span>         <span class="comment">; Call the ROM routine that opens a channel</span>
+    <span class="keyword">RET</span>                 <span class="comment">; Return to the caller</span></code></pre>
+<p>Call this once at the very start of your program. After that, the screen is ready and you can print to it freely.</p>
+
+<h2 id="debug-print-char">print_char</h2>
+<p>In a high-level language, you&#x27;d write something like print(&#x27;A&#x27;) — you call a function and pass the character as an argument. In assembly, there are no function arguments in that sense. Instead, you put the value in a register before calling the routine. The routine then reads it from that register. The A register is used here — whatever value is in A when you call print_char is the character that gets printed.</p>
+<p>The actual printing is done by RST 0x10, a ROM routine built into the Spectrum. RST is a special fast CALL to a fixed address. RST 0x10 prints whatever character is in the A register to whichever channel was last opened (which is why we call debug_init first).</p>
+<pre><code><span class="label">print_char</span>:
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Print whatever character is in A</span>
+    <span class="keyword">RET</span>                 <span class="comment">; Return to the caller</span></code></pre>
+<p>To use it, load the character into A first, then call:</p>
+<pre><code>    <span class="keyword">LD</span> A, &#x27<span class="comment">;*&#x27;            ; Put ASCII code for &#x27;*&#x27; into A</span>
+    <span class="keyword">CALL</span> print_char      <span class="comment">; Prints: *</span></code></pre>
+<p>For a newline, load 13 (carriage return) into A and call RST 0x10 directly — there is no need for a separate routine when it is just two instructions:</p>
+<pre><code>    <span class="keyword">LD</span> A, 13             <span class="comment">; 13 = carriage return</span>
+    <span class="keyword">RST</span> <span class="number">0x10</span>             <span class="comment">; Move to the next line</span></code></pre>
+
+<h2 id="debug-print-string">print_string</h2>
+<p>A string in assembly is just a sequence of bytes in memory, one per character, with a zero byte at the end to mark where the string finishes. This zero byte is called the null terminator — it is how the routine knows when to stop printing. You define a string like this:</p>
+<pre><code><span class="label">msg</span>: <span class="directive">DB</span> <span class="string">"Hello!"</span>, 0       <span class="comment">; The 0 at the end is the null terminator</span></code></pre>
+<p>Let's break this line down. <strong>DB</strong> stands for "Define Byte" — it tells the assembler to place raw bytes directly into memory at this point rather than generating a machine instruction. The text in quotes, <code>"Hello!"</code>, is a shorthand — the assembler converts each character to its ASCII code and stores them as consecutive bytes (72, 101, 108, 108, 111, 33). The <strong>comma</strong> separates items in the DB list, so you can mix quoted strings with individual byte values. Here, the <strong>0</strong> after the comma is a single byte with the value zero — the null terminator. It does not represent the character '0' (which would be ASCII 48); it is literally the value 0, and it marks the end of the string so our print routine knows when to stop.</p>
+<p>The label msg is just a name for the memory address where the string starts. To print it, we need to tell the routine where to find the string. We do this by loading the address into the HL register pair. HL is a 16-bit register pair — H stands for High and L stands for Low, and together they hold a single 16-bit value. It is commonly used as a pointer — it holds the address of something in memory rather than the data itself.</p>
+<pre><code><span class="label">print_string</span>:
+    <span class="keyword">LD</span> A, (HL)          <span class="comment">; Read the byte at the address HL points to</span>
+    <span class="keyword">OR</span> A                <span class="comment">; Is it zero? (sets the Zero flag if A is 0)</span>
+    <span class="keyword">RET</span> Z               <span class="comment">; If zero, we&#x27;ve hit the null terminator — stop</span>
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Not zero, so print this character</span>
+    <span class="keyword">INC</span> HL              <span class="comment">; Move HL to point to the next byte</span>
+    <span class="keyword">JR</span> print_string      <span class="comment">; Loop back and do the next character</span></code></pre>
+<p>Walking through it: LD A, (HL) reads one byte from the memory address that HL points to and puts it in A. The parentheses mean &#x27;the contents of the address&#x27; — without them, LD A, HL would try to load the address itself, not the data at that address. OR A is a quick way to check if A is zero (it sets the Zero flag without changing A&#x27;s value). RET Z returns if the Zero flag is set, meaning we&#x27;ve reached the null terminator. Otherwise, RST 0x10 prints the character, INC HL moves the pointer forward by one byte to the next character, and JR print_string jumps back to the top of the loop.</p>
+
+<h3>Understanding what HL actually holds</h3>
+<p>When we write <code>LD HL, msg</code>, it is important to understand what HL contains afterwards. HL does not hold the string itself — it cannot, because HL is only two bytes wide, and a string can be any length. What HL holds is the <strong>memory address</strong> where the first character of the string is stored. It is a pointer to the beginning of the string, nothing more.</p>
+<p>The string itself lives in memory as a sequence of consecutive bytes laid out by the <code>DB</code> directive. Suppose <code>msg</code> ends up at address $8000. Memory would look like this:</p>
+<pre><code><span class="comment">; Address   Value    Character</span>
+<span class="comment">;  $8000      72       'H'      &lt;-- HL points here ($8000)</span>
+<span class="comment">;  $8001     101       'e'</span>
+<span class="comment">;  $8002     108       'l'</span>
+<span class="comment">;  $8003     108       'l'</span>
+<span class="comment">;  $8004     111       'o'</span>
+<span class="comment">;  $8005      33       '!'</span>
+<span class="comment">;  $8006       0       null terminator</span></code></pre>
+<p>After <code>LD HL, msg</code>, HL contains $8000. When we execute <code>LD A, (HL)</code>, the CPU goes to address $8000 and reads the byte there — 72, the ASCII code for 'H'. Now here is why <code>INC HL</code> works: it adds 1 to the address in HL, changing it from $8000 to $8001. The next time around the loop, <code>LD A, (HL)</code> reads from $8001 and gets 101 — the 'e'. Each time through the loop, INC HL advances the pointer by one address, and because the characters are stored in consecutive bytes, this moves us to the next character in the string.</p>
+<p>In a high-level language like Python, you might write <code>s[i]</code> and increment <code>i</code> — you keep a base address and an index, and the language computes the position for you. In assembly, we skip that and hold the position directly. HL <em>is</em> our position in the string. Incrementing it moves our position forward by one byte, which is exactly one character. There is no separate index variable, no base-plus-offset calculation — just a pointer that we walk forward through memory, one byte at a time, until we hit the null terminator.</p>
+<p>To use it:</p>
+<pre><code>    <span class="keyword">LD</span> HL, msg           <span class="comment">; Point HL at the start of the string</span>
+    <span class="keyword">CALL</span> print_string    <span class="comment">; Prints: Hello!</span></code></pre>
+
+<h2 id="debug-print-number">print_number</h2>
+<p>This routine prints a number (0–255) as readable digits on screen. For example, if A contains 42, it prints the characters &#x27;4&#x27; and &#x27;2&#x27;. The Spectrum ROM has built-in routines that handle the conversion from a number to its decimal digits, so we don&#x27;t need to do the maths ourselves.</p>
+<p>The ROM&#x27;s number-printing routine expects the number in the BC register pair (a 16-bit register, B is the high byte, C is the low byte). Since our number is 8-bit and sits in A, we need to put it into BC with B set to 0 (the high byte is zero because our number fits in a single byte) and C set to our number.</p>
+<p>We also need to preserve the BC register. Other code in your program might be using B or C for something else, and if we overwrite them here, that code would break. PUSH BC saves BC&#x27;s current value onto the stack (a temporary storage area) before we change it, and POP BC restores the original value when we&#x27;re done.</p>
+<pre><code><span class="label">print_number</span>:
+    <span class="keyword">PUSH</span> BC              <span class="comment">; Save BC so we don&#x27;t destroy the caller&#x27;s values</span>
+    <span class="keyword">LD</span> B, 0              <span class="comment">; High byte = 0 (our number is only 8-bit)</span>
+    <span class="keyword">LD</span> C, A              <span class="comment">; Low byte = the number we want to print</span>
+    <span class="keyword">CALL</span> <span class="number">0x2D28</span>          <span class="comment">; ROM routine: takes BC and prepares it for printing</span>
+    <span class="keyword">CALL</span> <span class="number">0x2DE3</span>          <span class="comment">; ROM routine: prints the number as decimal digits</span>
+    <span class="keyword">POP</span> BC               <span class="comment">; Restore BC to its original value</span>
+    <span class="keyword">RET</span>                  <span class="comment">; Return to the caller</span></code></pre>
+<p>To use it, just load your number into A and call:</p>
+<pre><code>    <span class="keyword">LD</span> A, 42
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Prints: 42</span></code></pre>
+
+<h2 id="using-the-routines">Putting It All Together</h2>
+<p>Call debug_init once at the start of your program. After that, use the three routines freely. Here is a complete program:</p>
+<pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
+
+    <span class="keyword">CALL</span> debug_init      <span class="comment">; Set up screen output (do this once)</span>
+
+    <span class="keyword">LD</span> HL, msg           <span class="comment">; Point HL at our string</span>
+    <span class="keyword">CALL</span> print_string    <span class="comment">; Prints: Hello!</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+    <span class="keyword">LD</span> A, 42
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Prints: 42</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+    <span class="keyword">LD</span> A, &#x27<span class="comment">*&#x27;</span>
+    <span class="keyword">CALL</span> print_char      <span class="comment">; Prints: *</span>
+
+    <span class="keyword">RET</span>                  <span class="comment">; Return to BASIC</span>
+
+<span class="label">msg</span>: <span class="directive">DB</span> <span class="string">"Hello!"</span>, 0
+
+    <span class="directive">INCLUDE</span> <span class="string">"debug_output.asm"</span>
+    <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+<p>These routines appear in examples throughout the guide. The full source is also reproduced in the appendix for easy reference.</p>
+</section>
+
+<section id="1-introduction-setup">
+<h1>1. Introduction &amp; Setup</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages">In High-Level Languages</h2>
+<p>You install a runtime or compiler, create a source file, and run a command. Python gives you an interpreter, Node gives you a runtime, C gives you a compiler that produces an executable. The toolchain handles the translation from your text to something the machine understands.</p>
+<h2 id="in-z80-assembly-with-pasmo">In Z80 Assembly with Pasmo</h2>
+<p class="bold-text">You need two things: Pasmo (the assembler) to translate your mnemonics into machine code, and an emulator to run the result. That&#x27;s it.</p>
+<p class="bold-text">Pasmo is a portable Z80 cross-assembler. When you use the --tapbas flag, it produces a .tap file that includes a BASIC loader program. This loader automatically runs your machine code when the tape is loaded, so you don&#x27;t need to manually POKE addresses or type RANDOMIZE USR commands.</p>
+<p class="bold-text">Emulator: For ZX Spectrum development, Fuse is excellent and freely available for all major operating systems. It loads .tap files directly.</p>
+<h2 id="your-workflow">Your Workflow</h2>
+<p>The development cycle is simple. Write your assembly code in a .asm file. Assemble it with Pasmo. Load the resulting .tap file in Fuse. Here is how that looks:</p>
+<pre><code><span class="comment">; Save this as first.asm</span>
+    <span class="directive">ORG</span> <span class="number">0x8000</span>           <span class="comment">; Code starts at address 32768</span>
+
+    <span class="keyword">LD</span> A, 2              <span class="comment">; Channel 2 = main screen</span>
+    <span class="keyword">CALL</span> <span class="number">0x1601</span>          <span class="comment">; ROM: open channel</span>
+    <span class="keyword">LD</span> A, 42             <span class="comment">; ASCII &#x27;*&#x27;</span>
+    <span class="keyword">RST</span> <span class="number">0x10</span>             <span class="comment">; ROM: print character</span>
+    <span class="keyword">RET</span>                  <span class="comment">; Return to BASIC</span>
+
+    <span class="directive">END</span> <span class="number">0x8000</span>           <span class="comment">; Entry point for BASIC loader</span></code></pre>
+<p>Assemble and run:</p>
+<pre><code>pasmo --tapbas first.asm first.tap</code></pre>
+<p>Then open first.tap in Fuse. The BASIC loader runs automatically, executing your code. You should see an asterisk printed on screen.</p>
+<p class="bold-text">The ORG 0x8000 directive tells the assembler where your code will live in memory (address 32768, safely above the Spectrum&#x27;s BASIC area). The END 0x8000 directive tells Pasmo&#x27;s BASIC loader what address to call with RANDOMIZE USR. RET at the end returns control back to BASIC.</p>
+<p class="bold-text">Key Difference: There&#x27;s no operating system in the traditional sense. The ZX Spectrum ROM provides some useful routines (like printing characters), but when your program ends with RET, control returns to the Spectrum&#x27;s BASIC interpreter. If you use HALT instead, the processor stops and you must reset the machine.</p>
+</section>
+
+<section id="2-variables-data-types">
+<h1>2. Variables &amp; Data Types</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-2">In High-Level Languages</h2>
+<p>You declare variables with names and types: let count = 0, int age = 25, name = &quot;Alice&quot;. The language manages where these values are stored, handles type conversions, and lets you refer to them by name throughout your code.</p>
+<h2 id="in-z80-assembly">In Z80 Assembly</h2>
+<p>There are no variables in the high-level sense. You have two places to store data: registers and memory. That&#x27;s it.</p>
+<h3 id="registers">Registers</h3>
+<p>The Z80 has a small set of registers—tiny, fast storage locations inside the processor itself:</p>
+<p class="bold-text">A (Accumulator): The primary register for arithmetic and logic. Most operations use A as one operand and store results back in A.</p>
+<p class="bold-text">B, C, D, E, H, L: General-purpose 8-bit registers. Can also be paired as BC, DE, and HL for 16-bit values.</p>
+<p class="bold-text">HL: Often used as a pointer to memory. Many instructions work with the memory location that HL points to, written as (HL).</p>
+<p class="bold-text">IX and IY: Index registers for accessing data at fixed offsets, like fields in a structure.</p>
+<p class="bold-text">SP: Stack pointer—points to the current top of the stack.</p>
+<p class="bold-text">PC: Program counter—the address of the next instruction. You don&#x27;t manipulate this directly; jumps and calls change it.</p>
+<p class="bold-text">F: Flags register—holds the results of comparisons and arithmetic (zero, carry, sign, etc.).</p>
+<h3 id="data-types">Data Types</h3>
+<p>There are only two &#x27;types&#x27;: bytes (8-bit, 0–255 or –128 to 127 if signed) and words (16-bit, 0–65535). Everything else—strings, arrays, structures—you build yourself from these primitives.</p>
+<pre><code><span class="comment">; Defining data in memory</span>
+<span class="label">my_byte</span>:   <span class="directive">DB</span> 42            <span class="comment">; Define a single byte with value 42</span>
+<span class="label">my_word</span>:   <span class="directive">DW</span> 1000          <span class="comment">; Define a 16-bit word (stored little-endian)</span>
+<span class="label">my_string</span>: <span class="directive">DB</span> <span class="string">"Hello"</span>, 0    <span class="comment">; String is just bytes, null-terminated</span>
+<span class="label">my_array</span>:  <span class="directive">DB</span> 1, 2, 3, 4, 5 <span class="comment">; Array is just consecutive bytes</span></code></pre>
+<p>DB means &#x27;define byte&#x27;, DW means &#x27;define word&#x27;. The labels (my_byte, my_word, etc.) are just names for memory addresses—the assembler replaces them with actual numbers.</p>
+<h3 id="loading-and-storing">Loading and Storing</h3>
+<pre><code><span class="comment">; Loading values</span>
+    <span class="keyword">LD</span> A, 10             <span class="comment">; Load immediate value 10 into A</span>
+    <span class="keyword">LD</span> B, A              <span class="comment">; Copy A into B</span>
+    <span class="keyword">LD</span> A, (my_byte)      <span class="comment">; Load value FROM memory address my_byte into A</span>
+    <span class="keyword">LD</span> HL, my_array      <span class="comment">; Load the ADDRESS of my_array into HL</span>
+    <span class="keyword">LD</span> A, (HL)           <span class="comment">; Load the byte that HL points to into A</span>
+
+<span class="comment">; Storing values</span>
+    <span class="keyword">LD</span> (my_byte), A      <span class="comment">; Store A&#x27;s value TO memory address my_byte</span>
+    <span class="keyword">LD</span> (HL), 99          <span class="comment">; Store 99 at the address HL points to</span></code></pre>
+<p><strong>Parentheses mean "the contents at this address".</strong> This is the single most important syntax rule in Z80 assembly. Without parentheses, you get the address itself; with parentheses, you get the value stored at that address. Compare these two instructions:</p>
+<pre><code>    <span class="keyword">LD</span> A, (my_byte)      <span class="comment">; A = the value stored at my_byte's address (e.g. 42)</span>
+    <span class="keyword">LD</span> HL, my_byte       <span class="comment">; HL = the address of my_byte itself (e.g. $8000)</span></code></pre>
+<p>In the first line, the parentheses tell the CPU: "go to the address labelled <code>my_byte</code>, read the byte stored there, and put it in A." In the second line, there are no parentheses, so the CPU simply loads the address number into HL — it never looks at what is stored there. This is the difference between reading a value from a postbox and writing down the postbox's location. Both are useful, but mixing them up is one of the most common beginner mistakes in Z80 programming.</p>
+<p>To verify that your loads and stores are working, use the debug routines:</p>
+<pre><code>    <span class="keyword">LD</span> A, (my_byte)      <span class="comment">; Load the value</span>
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Display it on screen - should show 42</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span></code></pre>
+<p class="bold-text">Key Difference: There&#x27;s no type checking, no automatic conversion, no protection. If you write a 16-bit value to an 8-bit location, you&#x27;ll overwrite whatever&#x27;s next in memory. You must track what&#x27;s stored where.</p>
+</section>
+
+<section id="3-operators-expressions">
+<h1>3. Operators &amp; Expressions</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-3">In High-Level Languages</h2>
+<p>Expressions combine values with operators: result = (a + b) * c - d / 2. The compiler figures out the order of operations, allocates temporary storage, and generates all necessary instructions automatically.</p>
+<h2 id="in-z80-assembly-2">In Z80 Assembly</h2>
+<p>There are no expressions. Each operation is a separate instruction, and results almost always go into the accumulator (A). To compute (a + b) * c, you must break it down step by step.</p>
+<h3 id="arithmetic-instructions">Arithmetic Instructions</h3>
+<pre><code><span class="comment">; Addition</span>
+    <span class="keyword">ADD</span> A, B             <span class="comment">; A = A + B</span>
+    <span class="keyword">ADD</span> A, 5             <span class="comment">; A = A + 5</span>
+
+<span class="comment">; Subtraction</span>
+    <span class="keyword">SUB</span> B                <span class="comment">; A = A - B</span>
+    <span class="keyword">SUB</span> 10               <span class="comment">; A = A - 10</span>
+
+<span class="comment">; Increment / Decrement</span>
+    <span class="keyword">INC</span> A                <span class="comment">; A = A + 1</span>
+    <span class="keyword">DEC</span> B                <span class="comment">; B = B - 1</span>
+    <span class="keyword">INC</span> HL               <span class="comment">; HL = HL + 1 (16-bit increment)</span></code></pre>
+<h3 id="logic-instructions">Logic Instructions</h3>
+<p>These instructions work on individual bits. Each bit in A is compared with the corresponding bit in the other register, one bit at a time. The examples below use the <code>%</code> prefix to write numbers in binary (e.g. <code>%00000001</code> is the value 1, with each digit representing one bit). This makes it easy to see exactly which bits are being affected:</p>
+<p><strong>Bitwise vs logical — an important distinction.</strong> In a high-level language, <code>AND</code> and <code>OR</code> are usually <em>logical</em> operators that treat entire values as either true or false: <code>3 AND 5</code> evaluates to true because both values are non-zero. On the Z80, AND and OR are <em>bitwise</em> — they operate on each of the 8 bits independently. This means the result depends on the bit patterns, not the overall values. For example, if A = 3 and B = 5:</p>
+<pre><code><span class="comment">; A = 3        →  00000011</span>
+<span class="comment">; B = 5        →  00000101</span>
+<span class="comment">; AND B result →  00000001  (only bit 0 is 1 in both — result is 1, not 3 or 5)</span>
+<span class="comment">; OR  B result →  00000111  (bits 0, 1, and 2 are set in at least one — result is 7)</span></code></pre>
+<p>If you come from Python or C and expect <code>AND</code> to mean "are both of these things true?", you will get unexpected results. The Z80 does not care whether a value is "truthy" — it lines up the bits and compares them one by one. There is no logical AND or OR on the Z80. You get bitwise operations only, and they are powerful once you think in terms of individual bits rather than whole numbers.</p>
+<pre><code>    <span class="keyword">AND</span> B                <span class="comment">; A = A AND B</span>
+    <span class="keyword">OR</span> C                 <span class="comment">; A = A OR C</span>
+    <span class="keyword">XOR</span> A                <span class="comment">; A = A XOR A (quick way to set A to 0)</span>
+    <span class="keyword">CPL</span>                  <span class="comment">; A = NOT A (flip every bit)</span></code></pre>
+<p><strong>AND</strong> — a bit in the result is 1 only if that bit is 1 in <em>both</em> inputs. If either bit is 0, the result is 0. This is useful for masking out bits you don't care about. For example, AND with 00001111 keeps only the lower four bits and clears the upper four.</p>
+<pre><code>    <span class="comment">; Reading the keyboard on the Spectrum returns a byte where</span>
+    <span class="comment">; each bit represents a key (0 = pressed, 1 = not pressed).</span>
+    <span class="comment">; To check just bit 0 (the outermost key), mask off everything else:</span>
+    <span class="keyword">IN</span> A, (<span class="number">0xFE</span>)          <span class="comment">; Read keyboard port</span>
+    <span class="keyword">AND</span> <span class="number">%00000001</span>        <span class="comment">; Keep only bit 0, all other bits become 0</span>
+    <span class="comment">; A is now either 0 (key pressed) or 1 (key not pressed)</span></code></pre>
+<p><strong>OR</strong> — a bit in the result is 1 if that bit is 1 in <em>either</em> input (or both). The only way a bit ends up 0 is if it is 0 in both inputs. This is useful for setting specific bits without disturbing the others.</p>
+<pre><code>    <span class="comment">; The Spectrum screen attributes byte controls ink, paper, bright and flash.</span>
+    <span class="comment">; To turn on BRIGHT (bit 6) without changing the colours:</span>
+    <span class="keyword">LD</span> A, (HL)            <span class="comment">; Read current attribute byte</span>
+    <span class="keyword">OR</span> <span class="number">%01000000</span>         <span class="comment">; Force bit 6 to 1 — BRIGHT on</span>
+    <span class="keyword">LD</span> (HL), A            <span class="comment">; Write it back — colours unchanged, now bright</span></code></pre>
+<p><strong>XOR</strong> — a bit in the result is 1 if the two inputs are <em>different</em>, and 0 if they are the same. This is why XOR A with itself always gives 0 — every bit matches, so every result bit is 0. It is the fastest way to clear A on the Z80 (one byte, four T-states, versus two bytes for LD A, 0). XOR is also useful for toggling bits on and off:</p>
+<pre><code>    <span class="comment">; Toggle FLASH (bit 7) on a screen attribute — if it was on, turn it off;</span>
+    <span class="comment">; if it was off, turn it on:</span>
+    <span class="keyword">LD</span> A, (HL)            <span class="comment">; Read current attribute byte</span>
+    <span class="keyword">XOR</span> <span class="number">%10000000</span>        <span class="comment">; Flip bit 7 — toggles FLASH</span>
+    <span class="keyword">LD</span> (HL), A            <span class="comment">; Write it back</span></code></pre>
+<p><strong>CPL</strong> — flips every bit in A. Every 1 becomes 0 and every 0 becomes 1. For example, if A is 00110101, after CPL it becomes 11001010. One common use is inverting a sprite so it shows up against any background:</p>
+<pre><code>    <span class="comment">; To draw a sprite using XOR (so it can be erased by drawing again),</span>
+    <span class="comment">; you sometimes need the inverted version of the graphic data:</span>
+    <span class="keyword">LD</span> A, (HL)            <span class="comment">; Read a byte of sprite data</span>
+    <span class="keyword">CPL</span>                   <span class="comment">; Invert it — every pixel flips</span>
+    <span class="comment">; Now A holds the negative image of that sprite row</span></code></pre>
+<h3 id="building-an-expression">Building an Expression</h3>
+<p>Let&#x27;s compute result = (10 + 5) * 2 and verify the answer:</p>
+<pre><code>    <span class="keyword">LD</span> A, 10             <span class="comment">; A = 10</span>
+    <span class="keyword">LD</span> B, 5              <span class="comment">; B = 5</span>
+    <span class="keyword">ADD</span> A, B             <span class="comment">; A = 10 + 5 = 15</span>
+    <span class="keyword">ADD</span> A, A             <span class="comment">; A = 15 * 2 = 30 (adding to itself)</span>
+
+    <span class="comment">; Verify the result using debug output</span>
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Should display 30</span></code></pre>
+<p>Notice there&#x27;s no multiply instruction for simple multiplication. For multiplying by 2, you add the value to itself or use shift instructions. For general multiplication, you must implement it with loops or lookup tables.</p>
+<p class="bold-text">Key Difference: The Z80 has no MUL or DIV instructions. Multiplication and division must be implemented in software, typically through repeated addition/subtraction or clever use of shifts. This is why early games often used powers of 2 for sizes and speeds.</p>
+</section>
+
+<section id="4-control-flow-conditionals">
+<h1>4. Control Flow: Conditionals</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-4">In High-Level Languages</h2>
+<p>You write if/else blocks: if (x &gt; 10) { doThis(); } else { doThat(); }. The language handles the branching logic invisibly.</p>
+<h2 id="in-z80-assembly-3">In Z80 Assembly</h2>
+<p>Conditionals work through two mechanisms: the flags register and conditional jumps. Every arithmetic or comparison instruction sets flags. You then use those flags to decide whether to jump.</p>
+<h3 id="the-flags-register">The Flags Register</h3>
+<p>The F register contains several flag bits that reflect the result of the last operation:</p>
+<p class="bold-text">Z (Zero): Set if the result was zero.</p>
+<p class="bold-text">C (Carry): Set when a result does not fit in 8 bits. For addition, the carry flag is set if the result exceeds 255 — for example, 200 + 100 = 300, which is too large for a single byte, so the carry flag is set and A wraps around to 44 (300 - 256). For subtraction, the carry flag is set if the result would go below 0 — for example, 10 - 20 = -10, which is not a valid unsigned number, so the carry flag is set and A wraps around to 246 (256 - 10). Think of it as the CPU's way of saying "the answer didn't fit" — you can then check the carry flag to detect the overflow, or use ADC and SBC (explained below) to carry the extra bit into the next byte of a multi-byte calculation.</p>
+<p>The carry flag is also used by two special arithmetic instructions: <strong>ADC</strong> (Add with Carry) and <strong>SBC</strong> (Subtract with Carry). These add or subtract as normal, but also include the carry flag in the calculation. This is how you do maths on numbers larger than 255 — the carry flag acts as the "1" you carry over when adding columns of digits by hand.</p>
+<p>Suppose you want to add two 16-bit numbers stored as pairs of bytes (low byte first, as the Z80 stores them). A single ADD can only handle 8 bits, so you add the low bytes first, then add the high bytes <em>with carry</em> to pick up any overflow from the first addition:</p>
+<pre><code><span class="comment">; Adding 200 + 100 = 300</span>
+<span class="comment">; These fit in single bytes, but their sum does not</span>
+
+    <span class="keyword">LD</span> A, 200            <span class="comment">; A = 200</span>
+    <span class="keyword">ADD</span> A, 100           <span class="comment">; 200 + 100 = 300, but 300 &gt; 255!</span>
+                         <span class="comment">; A wraps to 44 (300 - 256), carry flag is SET</span>
+    <span class="keyword">LD</span> C, A              <span class="comment">; C = 44 (low byte)</span>
+    <span class="keyword">LD</span> A, 0              <span class="comment">; High byte was 0</span>
+    <span class="keyword">ADC</span> A, 0             <span class="comment">; 0 + 0 + carry(1) = 1</span>
+    <span class="keyword">LD</span> B, A              <span class="comment">; Result: B = 1, C = 44 → 256 + 44 = 300</span></code></pre>
+<p>The carry flag did the crucial work here. The low byte addition (200 + 100) overflowed past 255, so A wrapped around to 44 and the carry flag was set. When we then did ADC A, 0 on the high byte, it added 0 + 0 + 1 (the carry) = 1. The final result is split across B and C: B holds 1 (representing 256) and C holds 44, giving 256 + 44 = 300. This is exactly like carrying a digit in long addition.</p>
+<p>Here is another example where the low bytes do not overflow, so the carry stays clear:</p>
+<pre><code><span class="comment">; Adding 50 + 30 = 80</span>
+<span class="comment">; Both fit in a byte, and so does the result</span>
+
+    <span class="keyword">LD</span> A, 50             <span class="comment">; A = 50</span>
+    <span class="keyword">ADD</span> A, 30            <span class="comment">; 50 + 30 = 80, no overflow, carry flag is CLEAR</span>
+    <span class="keyword">LD</span> C, A              <span class="comment">; C = 80 (low byte)</span>
+    <span class="keyword">LD</span> A, 0              <span class="comment">; High byte was 0</span>
+    <span class="keyword">ADC</span> A, 0             <span class="comment">; 0 + 0 + carry(0) = 0</span>
+    <span class="keyword">LD</span> B, A              <span class="comment">; Result: B = 0, C = 80 → just 80</span></code></pre>
+<p>This time the low bytes added up to 80, which fits in a single byte, so the carry flag stayed clear. ADC added 0 + 0 + 0 = 0, and the high byte remained zero. The same code handles both cases correctly — the carry flag automatically propagates the overflow when it happens and does nothing when it doesn't.</p>
+<p><strong>SBC</strong> works the same way but for subtraction — it subtracts the value <em>and</em> the carry flag. This handles the "borrow" when the low byte subtraction needs to take 1 from the high byte.</p>
+<p class="bold-text">S (Sign): Set if the result was negative (bit 7 is 1).</p>
+<p class="bold-text">P/V (Parity/Overflow): Context-dependent—parity for logic ops, overflow for arithmetic.</p>
+<h3 id="conditional-jumps">Conditional Jumps</h3>
+<p>Jump instructions send execution to a <strong>label</strong> — a name you give to a specific point in your code, written as a word followed by a colon (e.g. <code>my_label:</code>). The assembler converts the label into a memory address for you. Labels are covered in more detail in the <a href="#6-functions">Functions</a> section.</p>
+<pre><code>    <span class="keyword">JP</span> Z, label          <span class="comment">; Jump if zero flag is set</span>
+    <span class="keyword">JP</span> NZ, label         <span class="comment">; Jump if zero flag is NOT set</span>
+    <span class="keyword">JP</span> C, label          <span class="comment">; Jump if carry flag is set</span>
+    <span class="keyword">JP</span> NC, label         <span class="comment">; Jump if carry flag is NOT set</span>
+    <span class="keyword">JP</span> M, label          <span class="comment">; Jump if sign flag is set (negative)</span>
+    <span class="keyword">JP</span> P, label          <span class="comment">; Jump if sign flag is clear (positive)</span></code></pre>
+<p>There is also <strong>JR</strong> (Jump Relative), which works the same way but encodes the destination as an offset from the current position rather than an absolute address. JR is one byte smaller than JP, but it can only jump within -128 to +127 bytes of the current instruction, and it only supports four conditions: Z, NZ, C, and NC. Use JR for short, nearby branches and JP when the target is far away or you need the S or P/V flags.</p>
+<h3 id="comparison">Comparison</h3>
+<pre><code>    <span class="keyword">CP</span> B                 <span class="comment">; Compare A with B (sets flags, doesn&#x27;t change A)</span>
+    <span class="keyword">CP</span> 100               <span class="comment">; Compare A with 100</span></code></pre>
+<p>The CP instruction subtracts without storing the result — it only sets the flags. A is unchanged afterwards. You then use a conditional jump to act on the result:</p>
+<pre><code>    <span class="keyword">CP</span> 10                <span class="comment">; Subtract 10 from A (but don't store the result)</span>
+    <span class="keyword">JR</span> Z, is_ten         <span class="comment">; Jump if A was equal to 10 (Zero flag set)</span>
+    <span class="keyword">JR</span> C, less_than      <span class="comment">; Jump if A was less than 10 (Carry flag set)</span>
+    <span class="comment">; If we reach here, A was greater than 10</span></code></pre>
+<p>Think of it as asking a question: CP asks "how does A compare?", and the conditional jump acts on the answer. The common patterns are:</p>
+<ul>
+<li><code>CP n</code> then <code>JR Z</code> — jump if A equals n</li>
+<li><code>CP n</code> then <code>JR NZ</code> — jump if A does not equal n</li>
+<li><code>CP n</code> then <code>JR C</code> — jump if A is less than n</li>
+<li><code>CP n</code> then <code>JR NC</code> — jump if A is greater than or equal to n</li>
+</ul>
+<h3 id="building-an-if-else">Building an If/Else</h3>
+<p>Here&#x27;s how to implement if (a == 10) { b = 1 } else { b = 0 }, with debug output to verify:</p>
+<pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
+    <span class="keyword">CALL</span> debug_init
+    <span class="keyword">LD</span> A, (var_a)        <span class="comment">; Load a</span>
+    <span class="keyword">CP</span> 10                <span class="comment">; Compare with 10 (sets Z if equal)</span>
+    <span class="keyword">JP</span> NZ, else_block    <span class="comment">; If not equal, jump to else</span>
+
+    <span class="comment">; If block (a == 10)</span>
+    <span class="keyword">LD</span> A, 1
+    <span class="keyword">LD</span> (var_b), A
+    <span class="keyword">LD</span> HL, msg_equal
+    <span class="keyword">CALL</span> print_string    <span class="comment">; Print confirmation</span>
+    <span class="keyword">JP</span> end_if            <span class="comment">; Skip the else block</span>
+
+<span class="label">else_block</span>:
+    <span class="comment">; Else block (a != 10)</span>
+    <span class="keyword">LD</span> A, 0
+    <span class="keyword">LD</span> (var_b), A
+    <span class="keyword">LD</span> HL, msg_noteq
+    <span class="keyword">CALL</span> print_string    <span class="comment">; Print confirmation</span>
+
+<span class="label">end_if</span>:
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+    <span class="keyword">RET</span>
+
+<span class="label">msg_equal</span>: <span class="directive">DB</span> <span class="string">"a equals 10"</span>, 0
+<span class="label">msg_noteq</span>: <span class="directive">DB</span> <span class="string">"a is not 10"</span>, 0
+<span class="label">var_a</span>: <span class="directive">DB</span> 10
+<span class="label">var_b</span>: <span class="directive">DB</span> 0
+
+    <span class="keyword">INCLUDE</span> <span class="string">"debug.asm"</span>
+    <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+<p>For greater-than or less-than comparisons, you use CP and check the carry and sign flags. After CP B, the carry flag is set if A &lt; B (unsigned), and you can combine checks for signed comparisons.</p>
+<p class="bold-text">Key Difference: There&#x27;s no implicit &#x27;else&#x27; structure. You must explicitly jump over blocks you don&#x27;t want to execute. Every branch is a goto by another name. The structure exists only in how you lay out your labels and jumps.</p>
+</section>
+
+<section id="5-control-flow-loops">
+<h1>5. Control Flow: Loops</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-5">In High-Level Languages</h2>
+<p>Loops have dedicated syntax: for, while, do-while, foreach. The language manages the iteration variable, the condition check, and the repetition.</p>
+<h2 id="in-z80-assembly-4">In Z80 Assembly</h2>
+<p>Loops are built from labels, conditional jumps, and decrement instructions. The Z80 does have one special instruction that helps: DJNZ.</p>
+<h3 id="the-djnz-instruction">The DJNZ Instruction</h3>
+<pre><code><span class="keyword">DJNZ</span> stands for &#x27<span class="comment">;Decrement B and Jump if Not Zero&#x27;. It&#x27;s a built-in counted loop primitive:</span>
+    <span class="keyword">LD</span> B, 10             <span class="comment">; Loop 10 times</span>
+<span class="label">loop_start</span>:
+    <span class="comment">; ... loop body ...</span>
+    <span class="keyword">DJNZ</span> loop_start      <span class="comment">; Decrement B, jump if B != 0</span></code></pre>
+<p>This is the assembly equivalent of for (int i = 10; i &gt; 0; i--). Note that it counts down, not up, and always uses the B register.</p>
+<h3 id="while-loop">While Loop</h3>
+<p>A while loop tests a condition at the top and repeats until that condition is false. Here is the general pattern — it loads the variable from memory on every iteration, checks it, does the work, stores it back, and loops:</p>
+<pre><code><span class="comment">; while (a != 0) { a--; }</span>
+<span class="label">while_start</span>:
+    <span class="keyword">LD</span> A, (var_a)        <span class="comment">; Load the current value from memory into A</span>
+    <span class="keyword">CP</span> 0                 <span class="comment">; Is it 0?</span>
+    <span class="keyword">JP</span> Z, while_end      <span class="comment">; If yes, exit the loop</span>
+    <span class="keyword">DEC</span> A                <span class="comment">; Subtract 1</span>
+    <span class="keyword">LD</span> (var_a), A        <span class="comment">; Store the new value back to memory</span>
+    <span class="keyword">JP</span> while_start       <span class="comment">; Jump back to the top and check again</span>
+<span class="label">while_end</span>:
+
+<span class="label">var_a</span>: <span class="directive">DB</span> 5              <span class="comment">; Starting value — the loop will run 5 times</span></code></pre>
+<p>Notice that A is loaded from memory <em>every time</em> around the loop. Why? Because the Z80 cannot compare or decrement a value directly in memory — it can only work on registers. So the pattern is always: load from memory, work on it in a register, store it back.</p>
+<p>In this simple case, though, that reload is wasteful. After DEC A, the register already holds the updated value — there is no need to store it and immediately load it again. A more efficient version keeps everything in A and only touches memory at the start and end:</p>
+<pre><code><span class="comment">; Same result, but faster — no unnecessary memory access inside the loop</span>
+    <span class="keyword">LD</span> A, (var_a)        <span class="comment">; Load once before the loop</span>
+<span class="label">while_start</span>:
+    <span class="keyword">CP</span> 0                 <span class="comment">; Is A 0?</span>
+    <span class="keyword">JP</span> Z, while_end      <span class="comment">; If yes, done</span>
+    <span class="keyword">DEC</span> A                <span class="comment">; A still holds the value — no need to reload</span>
+    <span class="keyword">JP</span> while_start       <span class="comment">; Loop back (A carries the value with it)</span>
+<span class="label">while_end</span>:
+    <span class="keyword">LD</span> (var_a), A        <span class="comment">; Store the final result (0) back to memory</span></code></pre>
+<p>The first version is the safe, general pattern — you would need it if the loop body used A for other things (like printing or calling a subroutine) and its value got overwritten. The second version works when nothing else in the loop touches A, so the value survives from one iteration to the next.</p>
+<h3 id="iterating-over-an-array">Iterating Over an Array</h3>
+<p>Here is how to sum all bytes in an array and display the result. The simplest approach is to hardcode the length:</p>
+<pre><code>    <span class="keyword">LD</span> HL, my_array      <span class="comment">; Point HL at start of array</span>
+    <span class="keyword">LD</span> B, 5              <span class="comment">; Array length — hardcoded</span>
+    <span class="keyword">XOR</span> A                <span class="comment">; Clear A (running total)</span>
+<span class="label">sum_loop</span>:
+    <span class="keyword">ADD</span> A, (HL)          <span class="comment">; Add current byte to total</span>
+    <span class="keyword">INC</span> HL               <span class="comment">; Move to next byte</span>
+    <span class="keyword">DJNZ</span> sum_loop        <span class="comment">; Repeat B times</span>
+
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Display the sum on screen</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+<span class="label">my_array</span>: <span class="directive">DB</span> 10, 20, 30, 40, 50</code></pre>
+<p>This works, but the length is baked into the code. If you add or remove elements from the array, you must remember to update the <code>LD B, 5</code> line as well — a common source of bugs.</p>
+<p>A better approach is to make the array carry its own length as the first byte. The data follows immediately after:</p>
+<pre><code><span class="label">my_array</span>: <span class="directive">DB</span> 5, 10, 20, 30, 40, 50
+<span class="comment">;            ^   ^--- the actual data starts here</span>
+<span class="comment">;            |</span>
+<span class="comment">;            length byte (5 elements follow)</span></code></pre>
+<p>Now the loop reads the length at runtime instead of having it hardcoded:</p>
+<pre><code>    <span class="keyword">LD</span> HL, my_array      <span class="comment">; HL points to the length byte</span>
+    <span class="keyword">LD</span> B, (HL)           <span class="comment">; B = first byte = 5 (the length)</span>
+    <span class="keyword">INC</span> HL               <span class="comment">; Move HL past the length byte to the actual data</span>
+    <span class="keyword">XOR</span> A                <span class="comment">; Clear A (running total)</span>
+<span class="label">sum_loop</span>:
+    <span class="keyword">ADD</span> A, (HL)          <span class="comment">; Add current byte to total</span>
+    <span class="keyword">INC</span> HL               <span class="comment">; Move to next byte</span>
+    <span class="keyword">DJNZ</span> sum_loop        <span class="comment">; Repeat B times</span>
+
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Display the sum on screen</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span></code></pre>
+<p>With this approach, you can change the array data freely — just keep the length byte accurate. The Z80 has no built-in way to know how long an array is, so you must always track the length yourself, either by hardcoding it, storing it alongside the data like this, or using a terminator value (like the null terminator we use for strings).</p>
+<h3 id="adding-to-an-array">Adding a Value to an Array</h3>
+<p>In a high-level language, adding to an array is simple — <code>my_array.push(60)</code> or <code>my_array.append(60)</code>. The language handles resizing the array if needed. In assembly, there is no resizing. Memory is fixed. If you want to add elements at runtime, you must reserve extra space upfront:</p>
+<pre><code><span class="label">my_array</span>: <span class="directive">DB</span> 3, 10, 20, 30   <span class="comment">; Length byte (3), followed by 3 values</span>
+          <span class="directive">DS</span> 5               <span class="comment">; Reserve 5 extra bytes of room to grow</span></code></pre>
+<p>The array currently holds 3 elements but has room for up to 8. To add the value 60 to the end, we need to: read the current length, calculate where the new element goes, write it there, and update the length byte:</p>
+<pre><code><span class="comment">; Add 60 to the end of my_array</span>
+    <span class="keyword">LD</span> HL, my_array      <span class="comment">; HL points to the length byte</span>
+    <span class="keyword">LD</span> A, (HL)           <span class="comment">; A = current length (3)</span>
+    <span class="keyword">INC</span> A                <span class="comment">; A = new length (4)</span>
+    <span class="keyword">LD</span> (HL), A           <span class="comment">; Update the length byte in memory</span>
+    <span class="keyword">LD</span> D, 0
+    <span class="keyword">LD</span> E, A              <span class="comment">; DE = new length (4)</span>
+    <span class="keyword">ADD</span> HL, DE           <span class="comment">; HL = my_array + 4 = address of the new last element</span>
+    <span class="keyword">LD</span> (HL), 60          <span class="comment">; Write 60 there</span></code></pre>
+<p>After this, the array in memory is: <code>4, 10, 20, 30, 60</code> — the length byte has been updated to 4 and the new value sits at the end.</p>
+<p class="bold-text">There is no bounds checking. If you add more elements than you reserved space for, you will silently overwrite whatever comes next in memory — other variables, other code, anything. There is no error, no warning. It is entirely your responsibility to check the length before adding and make sure you do not exceed the reserved space.</p>
+<p class="bold-text">Key Difference: Infinite loops are trivially easy—just JP back to a label with no exit condition. There&#x27;s no for-each; you manually track the pointer and count. Off-by-one errors are common and unforgiving.</p>
+</section>
+
+<section id="6-functions">
+<h1>6. Functions</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-6">In High-Level Languages</h2>
+<p>Functions have names, parameters, return values, local variables, and scope. The language manages the call stack, passes arguments, and returns values according to well-defined conventions.</p>
+<h2 id="in-z80-assembly-5">In Z80 Assembly</h2>
+<p>Functions are called &#x27;subroutines&#x27;. CALL pushes the return address onto the stack and jumps. RET pops that address and returns. Everything else—parameters, return values, local storage—is your responsibility.</p>
+<h3 id="basic-subroutine">Basic Subroutine</h3>
+<pre><code><span class="comment">; Main code</span>
+    <span class="keyword">LD</span> A, 5              <span class="comment">; Set up parameter in A</span>
+    <span class="keyword">CALL</span> double_it       <span class="comment">; Call subroutine</span>
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Display result - should show 10</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+<span class="comment">; Subroutine: doubles the value in A</span>
+<span class="label">double_it</span>:
+    <span class="keyword">ADD</span> A, A             <span class="comment">; A = A * 2</span>
+    <span class="keyword">RET</span>                  <span class="comment">; Return to caller</span></code></pre>
+<h3 id="the-stack">The Stack</h3>
+<p>The stack is a region of memory that grows downward. SP (stack pointer) points to the top. PUSH adds values, POP removes them:</p>
+<pre><code>    <span class="keyword">PUSH</span> BC              <span class="comment">; Save BC on stack (SP decreases by 2)</span>
+    <span class="keyword">PUSH</span> DE              <span class="comment">; Save DE</span>
+    <span class="comment">; ... do work that modifies BC and DE ...</span>
+    <span class="keyword">POP</span> DE               <span class="comment">; Restore DE (LIFO order!)</span>
+    <span class="keyword">POP</span> BC               <span class="comment">; Restore BC</span></code></pre>
+<p>This is how you preserve registers across subroutine calls. If your subroutine uses BC but the caller needs it preserved, push it at the start and pop it before returning.</p>
+<h3 id="parameter-passing-conventions">Parameter Passing Conventions</h3>
+<p>There&#x27;s no enforced convention. Common approaches include:</p>
+<p class="bold-text">Registers: Put parameters in specific registers before CALL. Fast and simple for few parameters.</p>
+<p class="bold-text">Stack: PUSH parameters before CALL, pop them in the subroutine. More flexible but slower.</p>
+<p class="bold-text">Fixed memory: Store parameters at known addresses. Simple but not re-entrant.</p>
+<pre><code><span class="comment">; Example: pass two parameters via registers</span>
+<span class="comment">; add_numbers: adds B and C, returns result in A</span>
+    <span class="keyword">LD</span> B, 10
+    <span class="keyword">LD</span> C, 20
+    <span class="keyword">CALL</span> add_numbers
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Display result - should show 30</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+<span class="label">add_numbers</span>:
+    <span class="keyword">LD</span> A, B
+    <span class="keyword">ADD</span> A, C
+    <span class="keyword">RET</span></code></pre>
+<p class="bold-text">Key Difference: There&#x27;s no scope, no automatic cleanup, no type safety. If a subroutine corrupts a register the caller was using, the bug may manifest far from its cause. Documentation and discipline replace compiler enforcement.</p>
+</section>
+
+<section id="7-data-structures">
+<h1>7. Data Structures</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-7">In High-Level Languages</h2>
+<p>Arrays, lists, dictionaries, objects, tuples—rich data structures with automatic bounds checking, dynamic resizing, and convenient access syntax.</p>
+<h2 id="in-z80-assembly-6">In Z80 Assembly</h2>
+<p>Everything is bytes in memory. Arrays are contiguous bytes. Structures are memory layouts you document and maintain manually. Pointers are just 16-bit values in register pairs.</p>
+<h3 id="arrays">Arrays</h3>
+<p>An array is just a block of consecutive bytes in memory. You can define one using <strong>DB</strong> with a list of values, as we have already seen. But if you want to reserve space without setting initial values — for example, a buffer to fill in later — you use <strong>DS</strong> (Define Space). DS tells the assembler to set aside a number of bytes, all initialized to zero. It does not create a new data type; it simply reserves empty room in memory.</p>
+<pre><code><span class="comment">; Define an array of 10 bytes, initialized to zero</span>
+<span class="label">scores</span>: <span class="directive">DS</span> 10            <span class="comment">; DS = Define Space (reserves 10 bytes, all zero)</span>
+
+<span class="comment">; Or define an array with initial values</span>
+<span class="label">primes</span>: <span class="directive">DB</span> 2, 3, 5, 7, 11, 13, 17, 19, 23, 29</code></pre>
+<p>The <code>primes</code> array is laid out in memory as 10 consecutive bytes. If <code>primes</code> starts at address 40000, it looks like this:</p>
+<pre><code><span class="comment">; Address  Index  Value</span>
+<span class="comment">; 40000    [0]    2</span>
+<span class="comment">; 40001    [1]    3</span>
+<span class="comment">; 40002    [2]    5</span>
+<span class="comment">; 40003    [3]    7</span>
+<span class="comment">; 40004    [4]    11</span>
+<span class="comment">; ...and so on</span></code></pre>
+<p>To access a specific element, we need to calculate its address: the start of the array plus the index. In a high-level language you would write <code>primes[3]</code> to get the fourth element (7). In Z80 assembly, we do the same calculation manually — but there is a catch. The Z80 has no instruction to add an 8-bit register to HL. <code>ADD HL, DE</code> exists, but <code>ADD HL, B</code> does not. So we must put our index into a 16-bit register pair (DE) first, with D set to 0 since our index is small enough to fit in the low byte alone:</p>
+<pre><code><span class="comment">; Access element 3 of the primes array (0-based, so this is the fourth value)</span>
+    <span class="keyword">LD</span> B, 3              <span class="comment">; B = the index we want</span>
+    <span class="keyword">LD</span> HL, primes        <span class="comment">; HL = address of the first element (e.g. 40000)</span>
+    <span class="keyword">LD</span> D, 0              <span class="comment">; D = 0 (high byte of index, zero because index &lt; 256)</span>
+    <span class="keyword">LD</span> E, B              <span class="comment">; E = 3 (low byte of index — now DE = 3)</span>
+    <span class="keyword">ADD</span> HL, DE           <span class="comment">; HL = 40000 + 3 = 40003</span>
+    <span class="keyword">LD</span> A, (HL)           <span class="comment">; Read the byte at address 40003 — A = 7</span></code></pre>
+<h3 id="structures">Structures</h3>
+<p>In a high-level language, you might group related data together using a class or struct:</p>
+<pre><code><span class="comment">// High-level language equivalent</span>
+<span class="comment">// class Player {</span>
+<span class="comment">//     x = 0        (1 byte)</span>
+<span class="comment">//     y = 0        (1 byte)</span>
+<span class="comment">//     health = 0   (1 byte)</span>
+<span class="comment">//     score = 0    (2 bytes)</span>
+<span class="comment">//     lives = 0    (1 byte)</span>
+<span class="comment">// }</span></code></pre>
+<p>The Z80 has no concept of classes, structs, or objects. But we can achieve the same thing by reserving a block of bytes and deciding which byte means what. A "structure" in assembly is just a convention — a documented agreement that "byte 0 is the x position, byte 1 is the y position" and so on. The CPU does not enforce this; it is entirely up to you to read and write the correct bytes.</p>
+<p>First, we define the layout using <strong>EQU</strong> (short for "equals"). EQU gives a name to a number — it does not reserve any memory or generate any code. It simply tells the assembler "wherever you see PLAYER_X, substitute 0" and so on. This makes the code readable instead of being full of mystery numbers:</p>
+<pre><code><span class="comment">; Player structure layout: 6 bytes total</span>
+PLAYER_X     <span class="directive">EQU</span> 0    <span class="comment">; Offset 0: x position (1 byte)</span>
+PLAYER_Y     <span class="directive">EQU</span> 1    <span class="comment">; Offset 1: y position (1 byte)</span>
+PLAYER_HP    <span class="directive">EQU</span> 2    <span class="comment">; Offset 2: health (1 byte)</span>
+PLAYER_SCORE <span class="directive">EQU</span> 3    <span class="comment">; Offset 3: score (2 bytes)</span>
+PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Offset 5: lives (1 byte)</span>
+
+<span class="label">player1</span>: <span class="directive">DS</span> 6            <span class="comment">; Reserve 6 bytes of memory for one player</span></code></pre>
+<p>If <code>player1</code> starts at address 40000, the memory looks like this:</p>
+<pre><code><span class="comment">; Address  Offset  Field</span>
+<span class="comment">; 40000    +0      x position</span>
+<span class="comment">; 40001    +1      y position</span>
+<span class="comment">; 40002    +2      health</span>
+<span class="comment">; 40003    +3      score (low byte)</span>
+<span class="comment">; 40004    +4      score (high byte)</span>
+<span class="comment">; 40005    +5      lives</span></code></pre>
+<p>To access these fields, we use the <strong>IX</strong> register. IX is a special 16-bit register that supports something the other registers do not: an offset using the <code>+</code> sign. When you write <code>(IX+2)</code>, it means "the byte at the address in IX, plus 2." The CPU calculates the address for you — if IX holds 40000, then <code>(IX+2)</code> reads from address 40002. This is perfect for structures because IX points to the start of the structure and the offset jumps to the field you want:</p>
+<pre><code><span class="comment">; Point IX at our player data</span>
+    <span class="keyword">LD</span> IX, player1       <span class="comment">; IX = address of player1 (e.g. 40000)</span>
+
+<span class="comment">; Read a field — equivalent to: hp = player1.health</span>
+    <span class="keyword">LD</span> A, (IX+PLAYER_HP) <span class="comment">; PLAYER_HP is 2, so this reads from address 40002</span>
+
+<span class="comment">; Modify it — equivalent to: player1.health = player1.health - 1</span>
+    <span class="keyword">DEC</span> A                <span class="comment">; Subtract 1 from health</span>
+    <span class="keyword">LD</span> (IX+PLAYER_HP), A <span class="comment">; Write the new value back to address 40002</span>
+
+<span class="comment">; Write a field — equivalent to: player1.x = 100</span>
+    <span class="keyword">LD</span> (IX+PLAYER_X), 100 <span class="comment">; PLAYER_X is 0, so this writes to address 40000</span></code></pre>
+<p>Without EQU, that last line would be <code>LD (IX+0), 100</code> — correct but meaningless to anyone reading the code. The named constants make it clear that we are setting the x position, not just writing to "offset 0." This is as close to <code>player1.x = 100</code> as assembly gets.</p>
+<h3 id="strings">Strings</h3>
+<p>Strings are just arrays of bytes with a terminator. Since we have the debug routines, printing them is straightforward:</p>
+<pre><code><span class="comment">; Null-terminated string</span>
+<span class="label">greeting</span>: <span class="directive">DB</span> <span class="string">"Hello, World!"</span>, 0
+
+<span class="comment">; Print using our debug routine</span>
+    <span class="keyword">LD</span> HL, greeting
+    <span class="keyword">CALL</span> print_string    <span class="comment">; Displays: Hello, World!</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span></code></pre>
+<p class="bold-text">Key Difference: No bounds checking whatsoever. Read past the end of an array and you get whatever garbage is in memory. Write past the end and you corrupt other data or code. Buffer overflows are not just possible—they&#x27;re easy.</p>
+</section>
+
+<section id="8-input-output">
+<h1>8. Input &amp; Output</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-8">In High-Level Languages</h2>
+<p>print(), console.log(), scanf(), file streams—abstract interfaces that hide hardware details. The OS and runtime handle the actual communication with devices.</p>
+<h2 id="in-z80-assembly-on-the-zx-spectrum">In Z80 Assembly on the ZX Spectrum</h2>
+<p>The ZX Spectrum provides two main ways to interact with hardware: the ROM routines (which we use in our debug output library) and direct hardware access via I/O ports and memory-mapped I/O.</p>
+<h3 id="rom-routines-for-screen-output">ROM Routines for Screen Output</h3>
+<p>The debug routines in this guide use the Spectrum ROM for printing. The key ROM entry points are:</p>
+<pre><code>    <span class="comment">; Open a channel (2 = main screen, 1 = lower screen)</span>
+    <span class="keyword">LD</span> A, 2
+    <span class="keyword">CALL</span> <span class="number">0x1601</span>
+
+    <span class="comment">; Print a single character</span>
+    <span class="keyword">LD</span> A, 65             <span class="comment">; &#x27;A&#x27;</span>
+    <span class="keyword">RST</span> <span class="number">0x10</span>
+
+    <span class="comment">; Clear the screen</span>
+    <span class="keyword">CALL</span> <span class="number">0x0DAF</span></code></pre>
+<h3 id="memory-mapped-i-o">Memory-Mapped I/O</h3>
+<p>On the ZX Spectrum, the screen memory starts at address 16384 (0x4000). Writing directly to this memory changes what appears on screen:</p>
+<pre><code><span class="comment">; Fill ZX Spectrum screen with a pattern</span>
+    <span class="keyword">LD</span> HL, 16384        <span class="comment">; Screen memory start</span>
+    <span class="keyword">LD</span> DE, 16385
+    <span class="keyword">LD</span> BC, 6144          <span class="comment">; Screen size in bytes</span>
+    <span class="keyword">LD</span> (HL), 255         <span class="comment">; Fill pattern</span>
+    <span class="keyword">LDIR</span>                 <span class="comment">; Block copy (fills screen)</span></code></pre>
+<h3 id="keyboard-input">Keyboard Input</h3>
+<pre><code><span class="comment">; Read keyboard half-row (ZX Spectrum)</span>
+<span class="comment">; Port 0xFE, high byte of address selects row</span>
+    <span class="keyword">LD</span> A, <span class="number">0xFD</span>           <span class="comment">; Row with A, S, D, F, G</span>
+    <span class="keyword">IN</span> A, (<span class="number">0xFE</span>)         <span class="comment">; Read key states</span>
+    <span class="keyword">BIT</span> 0, A             <span class="comment">; Test bit 0 (A key)</span>
+    <span class="keyword">JP</span> Z, a_pressed      <span class="comment">; Bit is 0 when key pressed</span></code></pre>
+<p class="bold-text">Key Difference: There&#x27;s no abstraction. You must know the hardware addresses, timing requirements, and data formats for every device you want to use. The debug output routines in this guide wrap the ROM calls so you don&#x27;t have to remember the details every time.</p>
+</section>
+
+<section id="9-error-handling">
+<h1>9. Error Handling</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-9">In High-Level Languages</h2>
+<p>Try/catch blocks, exceptions, error types, stack traces, recovery mechanisms. Errors propagate up the call stack automatically. You can catch them at appropriate levels and handle gracefully.</p>
+<h2 id="in-z80-assembly-7">In Z80 Assembly</h2>
+<p>There are no exceptions. Error handling means checking for errors explicitly after every operation that might fail, and deciding what to do yourself.</p>
+<h3 id="return-codes">Return Codes</h3>
+<p>The most common pattern is returning status in a register or flag. Here&#x27;s a division subroutine that checks for divide-by-zero and reports the outcome:</p>
+<pre><code><span class="comment">; Division subroutine with error checking</span>
+<span class="comment">; Input: A = dividend, B = divisor</span>
+<span class="comment">; Output: A = quotient, carry flag set on error</span>
+<span class="label">divide</span>:
+    <span class="keyword">LD</span> C, A              <span class="comment">; Save dividend</span>
+    <span class="keyword">LD</span> A, B
+    <span class="keyword">CP</span> 0                 <span class="comment">; Check for divide by zero</span>
+    <span class="keyword">JP</span> Z, div_error
+    <span class="comment">; ... perform division ...</span>
+    <span class="keyword">OR</span> A                 <span class="comment">; Clear carry (success)</span>
+    <span class="keyword">RET</span>
+
+<span class="label">div_error</span>:
+    <span class="keyword">SCF</span>                  <span class="comment">; Set carry flag (error)</span>
+    <span class="keyword">RET</span>
+
+<span class="comment">; Caller checks the result:</span>
+    <span class="keyword">CALL</span> divide
+    <span class="keyword">JP</span> C, handle_error   <span class="comment">; Carry set = error</span>
+    <span class="comment">; Success - display quotient</span>
+    <span class="keyword">CALL</span> print_number
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+    <span class="keyword">JP</span> continue
+
+<span class="label">handle_error</span>:
+    <span class="keyword">LD</span> HL, msg_diverr
+    <span class="keyword">CALL</span> print_string
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+<span class="label">continue</span>:
+
+<span class="label">msg_diverr</span>: <span class="directive">DB</span> <span class="string">"Error: divide by zero!"</span>, 0</code></pre>
+<h3 id="interrupts">Interrupts</h3>
+<p>The Z80 supports hardware interrupts for handling external events:</p>
+<p class="bold-text">Maskable Interrupts (INT): Can be enabled with EI and disabled with DI. Used for things like vertical blank in games.</p>
+<p class="bold-text">Non-Maskable Interrupt (NMI): Cannot be disabled. Jumps to address 0x0066. Used for critical events.</p>
+<p class="bold-text">Key Difference: Unhandled errors don&#x27;t throw exceptions—they cause undefined behavior. The program might crash, corrupt memory, enter an infinite loop, or appear to work while producing wrong results. Defensive programming isn&#x27;t optional; it&#x27;s survival. Use the debug output routines liberally to verify your assumptions.</p>
+</section>
+
+<section id="10-debugging-problem-solving">
+<h1>10. Debugging &amp; Problem-Solving</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<h2 id="in-high-level-languages-10">In High-Level Languages</h2>
+<p>Debuggers with breakpoints, watches, stack traces. Print statements. Exception messages. Profilers. Memory analyzers. Rich error messages pointing to line numbers.</p>
+<h2 id="in-z80-assembly-8">In Z80 Assembly</h2>
+<p>Debugging is harder but not impossible. You have two main strategies: emulator debugging tools and print-based debugging using the routines from the start of this guide.</p>
+<h3 id="emulator-debugging">Emulator Debugging</h3>
+<p>Fuse (and most Z80 emulators) includes a built-in debugger that lets you step through instructions one at a time, set breakpoints at addresses or conditions, inspect and modify registers, view and edit memory, and watch memory locations for changes.</p>
+<h3 id="print-based-debugging">Print-Based Debugging</h3>
+<p>The debug output routines at the start of this guide are your equivalent of console.log() or print(). Use them to verify your program&#x27;s behaviour at every step:</p>
+<pre><code><span class="comment">; Debugging example: verify a loop counter</span>
+    <span class="keyword">LD</span> B, 5
+<span class="label">debug_loop</span>:
+    <span class="keyword">PUSH</span> BC              <span class="comment">; Save B</span>
+    <span class="keyword">LD</span> A, B
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Print current counter value</span>
+    <span class="keyword">LD</span> A, &#x27<span class="comment">; &#x27;</span>
+    <span class="keyword">CALL</span> print_char      <span class="comment">; Print space separator</span>
+    <span class="keyword">POP</span> BC               <span class="comment">; Restore B</span>
+    <span class="keyword">DJNZ</span> debug_loop
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+    <span class="comment">; Should display: 5 4 3 2 1</span></code></pre>
+<p>You can also use the routines to create simple assertion checks:</p>
+<pre><code><span class="comment">; Assert: A should equal expected value</span>
+<span class="comment">; If not, print an error message and the actual value</span>
+<span class="label">assert_a_equals</span>:
+    <span class="comment">; B = expected value, A = actual value</span>
+    <span class="keyword">CP</span> B
+    <span class="keyword">RET</span> Z                <span class="comment">; Pass - values match</span>
+    <span class="comment">; Fail - display error</span>
+    <span class="keyword">PUSH</span> AF
+    <span class="keyword">LD</span> HL, msg_assert
+    <span class="keyword">CALL</span> print_string
+    <span class="keyword">POP</span> AF
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Show what A actually was</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+    <span class="keyword">RET</span>
+
+<span class="label">msg_assert</span>: <span class="directive">DB</span> <span class="string">"ASSERT FAIL! A = "</span>, 0</code></pre>
+<h3 id="common-bug-sources">Common Bug Sources</h3>
+<p>Off-by-one errors in loops (DJNZ counts from n to 1, not n-1 to 0)</p>
+<p>Forgetting to preserve registers across subroutine calls</p>
+<p>Stack imbalance (more pushes than pops, or vice versa)</p>
+<p>Little-endian confusion in 16-bit values</p>
+<p>Confusing immediate values with memory addresses: LD A, 10 vs LD A, (10)</p>
+<p>Flag clobbering—an instruction modifies flags you were about to test</p>
+<p class="bold-text">Key Difference: Errors often manifest far from their source. A stack imbalance might not crash until three subroutine returns later. A memory corruption might not be noticed until that memory is read minutes later. Use the print_number and print_string routines frequently during development to catch bugs early.</p>
+</section>
+
+<section id="11-a-complete-project-verified-counter">
+<h1>11. A Complete Project: Verified Counter</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+<p class="bold-text">Let&#x27;s tie everything together with a complete, assembler-ready program that counts from 0 to 20, displays each value, and verifies the final count. Save this as counter.asm:</p>
+<pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
+
+    <span class="keyword">CALL</span> debug_init
+
+    <span class="comment">; Print header</span>
+    <span class="keyword">LD</span> HL, msg_header
+    <span class="keyword">CALL</span> print_string
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+    <span class="comment">; Count from 0 to 20</span>
+    <span class="keyword">LD</span> C, 0              <span class="comment">; C = counter</span>
+<span class="label">main_loop</span>:
+    <span class="keyword">LD</span> A, C
+    <span class="keyword">CALL</span> print_number    <span class="comment">; Display current value</span>
+    <span class="keyword">LD</span> A, &#x27<span class="comment">; &#x27;</span>
+    <span class="keyword">CALL</span> print_char      <span class="comment">; Space separator</span>
+
+    <span class="keyword">INC</span> C
+    <span class="keyword">LD</span> A, C
+    <span class="keyword">CP</span> 21                <span class="comment">; Reached 21 yet?</span>
+    <span class="keyword">JP</span> NZ, main_loop     <span class="comment">; No - keep counting</span>
+
+    <span class="comment">; Finished counting</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+    <span class="comment">; Verify: C should be 21</span>
+    <span class="keyword">LD</span> A, C
+    <span class="keyword">CP</span> 21
+    <span class="keyword">JP</span> NZ, verify_fail
+
+    <span class="keyword">LD</span> HL, msg_pass
+    <span class="keyword">CALL</span> print_string
+    <span class="keyword">JP</span> done
+
+<span class="label">verify_fail</span>:
+    <span class="keyword">LD</span> HL, msg_fail
+    <span class="keyword">CALL</span> print_string
+    <span class="keyword">LD</span> A, C
+    <span class="keyword">CALL</span> print_number
+
+<span class="label">done</span>:
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+    <span class="keyword">RET</span>                  <span class="comment">; Return to BASIC</span>
+
+<span class="label">msg_header</span>: <span class="directive">DB</span> <span class="string">"Counting 0 to 20:"</span>, 0
+<span class="label">msg_pass</span>:   <span class="directive">DB</span> <span class="string">"Verification PASSED"</span>, 0
+<span class="label">msg_fail</span>:   <span class="directive">DB</span> <span class="string">"FAILED! C = "</span>, 0
+
+    <span class="directive">INCLUDE</span> <span class="string">"debug_output.asm"</span>
+
+    <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+<p>Assemble and run:</p>
+<pre><code>pasmo --tapbas counter.asm counter.tap</code></pre>
+<p>This program demonstrates register operations, subroutine calls and returns, loops with manual construction, comparison and conditional jumps, the stack for preserving values, and—crucially—debug output to verify that the code is working correctly.</p>
+</section>
+
+<section id="rst-instructions-and-rom-routines">
+<h1>12. RST Instructions &amp; ROM Routines</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+
+<p>Throughout this guide you've been using <code>RST 0x10</code> and <code>CALL 0x1601</code> without much explanation. This chapter explains what these are: the Z80's built-in shortcut instructions and the ZX Spectrum's library of ROM routines.</p>
+
+<h2 id="rst-restart-instructions">RST (Restart) Instructions</h2>
+
+<p>The Z80 has a set of special single-byte <code>CALL</code> instructions called <strong>RST</strong> (Restart). Where a normal <code>CALL</code> takes 3 bytes (the opcode plus a 2-byte address), an RST takes just 1 byte. The CPU pushes the current PC onto the stack and jumps to a fixed address, exactly like a <code>CALL</code>. When the routine hits <code>RET</code>, execution returns to where you left off.</p>
+
+<p>Think of them as built-in function calls &mdash; shorthand for the most commonly used routines. On the ZX Spectrum, the ROM at addresses 0x0000&ndash;0x3FFF contains Sinclair's operating system, and the RST addresses are entry points into key parts of it.</p>
+
+<p>The pattern is always the same: load registers with the values the routine expects, then execute the RST or CALL. It's the assembly equivalent of calling a library function.</p>
+
+<h2 id="the-rst-table">The RST Table</h2>
+
+<p>There are exactly 8 RST instructions. Each jumps to a fixed address that is a multiple of 8:</p>
+
+<table>
+<thead>
+<tr>
+<th>Instruction</th>
+<th>Jumps To</th>
+<th>Bytes</th>
+<th>ZX Spectrum Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RST 0x00</code></td>
+<td><code>0x0000</code></td>
+<td>1</td>
+<td>Reset / power-on entry point</td>
+</tr>
+<tr>
+<td><code>RST 0x08</code></td>
+<td><code>0x0008</code></td>
+<td>1</td>
+<td>Error restart (reports errors to BASIC)</td>
+</tr>
+<tr class="highlight-row">
+<td><code>RST 0x10</code></td>
+<td><code>0x0010</code></td>
+<td>1</td>
+<td><strong>Print character in A to current channel</strong></td>
+</tr>
+<tr>
+<td><code>RST 0x18</code></td>
+<td><code>0x0018</code></td>
+<td>1</td>
+<td>Collect current character from BASIC line</td>
+</tr>
+<tr>
+<td><code>RST 0x20</code></td>
+<td><code>0x0020</code></td>
+<td>1</td>
+<td>Collect next character from BASIC line</td>
+</tr>
+<tr>
+<td><code>RST 0x28</code></td>
+<td><code>0x0028</code></td>
+<td>1</td>
+<td>Calculator engine (floating-point maths)</td>
+</tr>
+<tr>
+<td><code>RST 0x30</code></td>
+<td><code>0x0030</code></td>
+<td>1</td>
+<td>Create space in memory (BC bytes)</td>
+</tr>
+<tr>
+<td><code>RST 0x38</code></td>
+<td><code>0x0038</code></td>
+<td>1</td>
+<td>Maskable interrupt handler</td>
+</tr>
+</tbody>
+</table>
+
+<p>The most commonly used is <code>RST 0x10</code> &mdash; the Spectrum's workhorse print routine. Almost every program that displays text uses it.</p>
+
+<h2 id="common-rom-routines">Common ROM Routines</h2>
+
+<p>Beyond the 8 RST entry points, the Spectrum ROM contains hundreds of useful routines that you call with a regular <code>CALL</code> instruction. Here are the most useful ones:</p>
+
+<h3 id="screen-and-output">Screen &amp; Output</h3>
+
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Name</th>
+<th>Setup</th>
+<th>What It Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x0010</code></td>
+<td>PRINT-A</td>
+<td>A = character</td>
+<td>Print character to current stream</td>
+</tr>
+<tr>
+<td><code>0x1601</code></td>
+<td>CHAN-OPEN</td>
+<td>A = channel (2=screen)</td>
+<td>Open an output channel</td>
+</tr>
+<tr>
+<td><code>0x203C</code></td>
+<td>PRINT-STR</td>
+<td>DE = address, BC = length</td>
+<td>Print string of BC bytes from DE</td>
+</tr>
+<tr>
+<td><code>0x0D6B</code></td>
+<td>CLS</td>
+<td>(none)</td>
+<td>Clear screen</td>
+</tr>
+<tr>
+<td><code>0x0DD9</code></td>
+<td>CL-SET</td>
+<td>B = row (0&ndash;23), C = col (0&ndash;31)</td>
+<td>Set print position (AT equivalent)</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="keyboard-and-input">Keyboard &amp; Input</h3>
+
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Name</th>
+<th>Returns</th>
+<th>What It Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x028E</code></td>
+<td>KEY-SCAN</td>
+<td>DE = key code</td>
+<td>Scan the keyboard for a keypress</td>
+</tr>
+<tr>
+<td><code>0x15D4</code></td>
+<td>WAIT-KEY</td>
+<td>A = key code</td>
+<td>Wait for a keypress and return it</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="sound">Sound</h3>
+
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>Name</th>
+<th>Setup</th>
+<th>What It Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x03B5</code></td>
+<td>BEEPER</td>
+<td>DE = pitch, HL = duration</td>
+<td>Play a tone through the beeper</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="practical-examples">Practical Examples</h2>
+
+<h3 id="example-1-print-a-single-character">Example 1: Print a Single Character</h3>
+
+<p>The simplest possible use &mdash; print the letter 'A' to the screen:</p>
+
+<pre><code><span class="directive">ORG</span> <span class="number">0x8000</span>
+
+<span class="comment">; Open channel 2 (main screen)</span>
+<span class="keyword">LD</span> A, 2
+<span class="keyword">CALL</span> <span class="number">0x1601</span>
+
+<span class="comment">; Print 'A' using RST 0x10</span>
+<span class="keyword">LD</span> A, <span class="string">'A'</span>
+<span class="keyword">RST</span> <span class="number">0x10</span>
+
+<span class="keyword">RET</span>
+
+<span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+
+<p>Notice how <code>RST 0x10</code> is just one byte. The equivalent <code>CALL 0x0010</code> would do the same thing but take 3 bytes. In a tight loop printing thousands of characters, those 2 bytes per call add up.</p>
+
+<h3 id="example-2-print-a-string">Example 2: Print a String</h3>
+
+<p>Print a null-terminated string by looping over each character:</p>
+
+<pre><code><span class="directive">ORG</span> <span class="number">0x8000</span>
+
+<span class="comment">; Open channel 2 (main screen)</span>
+<span class="keyword">LD</span> A, 2
+<span class="keyword">CALL</span> <span class="number">0x1601</span>
+
+<span class="comment">; Point HL at our message</span>
+<span class="keyword">LD</span> HL, message
+
+<span class="label">print_loop</span>:
+    <span class="keyword">LD</span> A, (HL)          <span class="comment">; load next character</span>
+    <span class="keyword">CP</span> 0                <span class="comment">; is it the null terminator?</span>
+    <span class="keyword">JP</span> Z, done          <span class="comment">; if yes, we're finished</span>
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; print it</span>
+    <span class="keyword">INC</span> HL              <span class="comment">; move to next character</span>
+    <span class="keyword">JP</span> print_loop
+
+<span class="label">done</span>:
+    <span class="keyword">RET</span>
+
+<span class="label">message</span>:
+    <span class="directive">DB</span> <span class="string">"Hello from Z80!"</span>, 0
+
+<span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+
+<h3 id="example-3-print-at-position">Example 3: Print at a Specific Screen Position</h3>
+
+<p>Use the ROM's CL-SET routine to position the cursor before printing:</p>
+
+<pre><code><span class="directive">ORG</span> <span class="number">0x8000</span>
+
+<span class="comment">; Open channel 2</span>
+<span class="keyword">LD</span> A, 2
+<span class="keyword">CALL</span> <span class="number">0x1601</span>
+
+<span class="comment">; Set print position to row 10, column 5</span>
+<span class="keyword">LD</span> B, 10             <span class="comment">; row (0-23)</span>
+<span class="keyword">LD</span> C, 5              <span class="comment">; column (0-31)</span>
+<span class="keyword">CALL</span> <span class="number">0x0DD9</span>          <span class="comment">; CL-SET: position the cursor</span>
+
+<span class="comment">; Now print a message at that position</span>
+<span class="keyword">LD</span> A, <span class="string">'X'</span>
+<span class="keyword">RST</span> <span class="number">0x10</span>
+
+<span class="keyword">RET</span>
+
+<span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+
+<h3 id="example-4-block-print">Example 4: Print a String Using the Block Print Routine</h3>
+
+<p>Instead of looping character by character, use the ROM's built-in string printer. You pass it a pointer and a length, and it does the rest:</p>
+
+<pre><code><span class="directive">ORG</span> <span class="number">0x8000</span>
+
+<span class="comment">; Open channel 2</span>
+<span class="keyword">LD</span> A, 2
+<span class="keyword">CALL</span> <span class="number">0x1601</span>
+
+<span class="comment">; Print a string using the ROM block print</span>
+<span class="keyword">LD</span> DE, message       <span class="comment">; DE = address of string</span>
+<span class="keyword">LD</span> BC, msg_len       <span class="comment">; BC = number of bytes to print</span>
+<span class="keyword">CALL</span> <span class="number">0x203C</span>          <span class="comment">; ROM routine: print BC bytes from DE</span>
+
+<span class="keyword">RET</span>
+
+<span class="label">message</span>:
+    <span class="directive">DB</span> <span class="string">"Printed with one CALL!"</span>
+<span class="label">msg_len</span> <span class="directive">EQU</span> $ - message
+
+<span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+
+<p>The <code>$</code> symbol means "the current address" in Pasmo, so <code>$ - message</code> calculates the string length automatically at assembly time. No need to count characters by hand.</p>
+
+<h3 id="example-5-wait-for-keypress">Example 5: Wait for a Keypress</h3>
+
+<p>Display a prompt, wait for the user to press a key, then print what they pressed:</p>
+
+<pre><code><span class="directive">ORG</span> <span class="number">0x8000</span>
+
+<span class="comment">; Open channel 2</span>
+<span class="keyword">LD</span> A, 2
+<span class="keyword">CALL</span> <span class="number">0x1601</span>
+
+<span class="comment">; Print prompt</span>
+<span class="keyword">LD</span> DE, prompt
+<span class="keyword">LD</span> BC, prompt_len
+<span class="keyword">CALL</span> <span class="number">0x203C</span>
+
+<span class="comment">; Wait for a keypress</span>
+<span class="keyword">CALL</span> <span class="number">0x15D4</span>          <span class="comment">; WAIT-KEY: blocks until key pressed</span>
+                     <span class="comment">; key code returned in A</span>
+
+<span class="comment">; Print the key that was pressed</span>
+<span class="keyword">RST</span> <span class="number">0x10</span>             <span class="comment">; print it (A still holds the key)</span>
+
+<span class="keyword">RET</span>
+
+<span class="label">prompt</span>:
+    <span class="directive">DB</span> <span class="string">"Press a key: "</span>
+<span class="label">prompt_len</span> <span class="directive">EQU</span> $ - prompt
+
+<span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+
+<h3 id="example-6-play-a-beep">Example 6: Play a Beep</h3>
+
+<p>Use the BEEPER ROM routine to play a tone. The pitch and duration values take some experimentation &mdash; lower DE values give higher pitched notes:</p>
+
+<pre><code><span class="directive">ORG</span> <span class="number">0x8000</span>
+
+<span class="comment">; Play a beep</span>
+<span class="keyword">LD</span> HL, <span class="number">0x00C0</span>        <span class="comment">; duration (higher = longer)</span>
+<span class="keyword">LD</span> DE, <span class="number">0x0040</span>        <span class="comment">; pitch (lower = higher pitch)</span>
+<span class="keyword">CALL</span> <span class="number">0x03B5</span>          <span class="comment">; BEEPER routine</span>
+
+<span class="keyword">RET</span>
+
+<span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+
+<h3 id="why-rst-instead-of-call">Why RST Instead of CALL?</h3>
+
+<p>You might wonder: if <code>RST 0x10</code> does the same as <code>CALL 0x0010</code>, why bother with RST at all? Two reasons:</p>
+
+<p><strong>Size:</strong> RST is 1 byte, CALL is 3 bytes. In a routine that prints hundreds of characters, that's significant &mdash; memory was precious on a 48K machine.</p>
+
+<p><strong>Speed:</strong> RST executes in 11 T-states vs 17 T-states for CALL. At 3.5 MHz, every cycle counts in time-critical code like games.</p>
+
+<p>The trade-off is that there are only 8 RST addresses available (0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38). The ROM designers chose wisely which routines deserved these premium slots.</p>
+
+</section>
+<section id="conclusion-what-you-gain">
+<h1>Conclusion: What You Gain</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+<p>Learning Z80 assembly won&#x27;t make you a faster programmer or help you ship products quicker. But it will fundamentally change how you understand computers.</p>
+<p>You&#x27;ll understand why arrays start at index 0 (because they&#x27;re pointer offsets), why buffer overflows are dangerous (because there&#x27;s nothing stopping you from writing past the end), why recursion can overflow the stack (because it&#x27;s a finite region of memory), and why optimising compilers are miraculous (because doing it by hand is painstaking).</p>
+<p>More than that, you&#x27;ll gain appreciation for the elegant simplicity at the heart of all computing: everything is bytes, everything is addresses, everything is instructions executing one after another. The abstractions we build on top are conveniences, not necessities.</p>
+<p>The Z80 is a beautiful teaching machine because it&#x27;s complex enough to be realistic but simple enough to hold entirely in your head. When you can trace every instruction, every memory access, every flag change, you&#x27;ve achieved a kind of understanding that no amount of high-level programming can provide.</p>
+<h2 id="quick-reference-pasmo-workflow">Quick Reference: Pasmo Workflow</h2>
+<pre><code><span class="comment">; 1. Write your code in a .asm file</span>
+<span class="comment">; 2. Include the debug routines:</span>
+<span class="comment">;        INCLUDE &quot;debug_output.asm&quot;</span>
+<span class="comment">; 3. Assemble:</span>
+<span class="comment">;        pasmo --tapbas yourfile.asm yourfile.tap</span>
+<span class="comment">; 4. Load in Fuse or another Spectrum emulator</span>
+<span class="comment">; 5. The BASIC loader auto-runs your code</span></code></pre>
+<h2 id="further-resources">Further Resources</h2>
+<p>The official Zilog Z80 CPU User Manual—dense but complete</p>
+<p>&#x27;Z80 Assembly Language Programming&#x27; by Lance Leventhal—a classic text</p>
+<p>Pasmo documentation: https://pasmo.speccy.org/</p>
+<p>Fuse emulator: https://fuse-emulator.sourceforge.net/</p>
+<p>World of Spectrum—ROM disassembly and Spectrum technical references</p>
+<p>Online assemblers and emulators for immediate experimentation</p>
+<p>Welcome to the machine.</p>
+</section>
+
+<section id="appendix-debug-output-routine">
+<h1>Appendix: Debug Output Routine</h1>
+<a href="#toc" class="back-to-top">[Back to Contents]</a>
+<p>The debug output routines introduced at the start of this guide are reproduced here for easy reference. Copy the code below into a file called debug_output.asm, or paste it directly at the end of your source files.</p>
+<pre><code><span class="comment">; =============================================================</span>
+<span class="comment">; debug_output.asm - Debug Display Routine for ZX Spectrum</span>
+<span class="comment">; Assemble with: pasmo --tapbas program.asm program.tap</span>
+<span class="comment">; =============================================================</span>
+<span class="comment">; INCLUDE this file in your program or copy the routines below.</span>
+<span class="comment">;</span>
+<span class="comment">; Call debug_init once at the start of your program to set up</span>
+<span class="comment">; the screen channel. Then use:</span>
+<span class="comment">;</span>
+<span class="comment">;   print_char    - Print a single character.  Input: A = char</span>
+<span class="comment">;   print_string  - Print a null-terminated string.  Input: HL</span>
+<span class="comment">;   print_number  - Print an 8-bit number (0-255).  Input: A</span>
+<span class="comment">;</span>
+<span class="comment">; For a newline, just do: LD A, 13 / RST 0x10</span>
+<span class="comment">; =============================================================</span>
+
+<span class="comment">; --- Call once at program start to open screen channel ---</span>
+<span class="label">debug_init</span>:
+    <span class="keyword">LD</span> A, 2             <span class="comment">; Channel 2 = main screen</span>
+    <span class="keyword">CALL</span> <span class="number">0x1601</span>         <span class="comment">; ROM: open channel</span>
+    <span class="keyword">RET</span>
+
+<span class="comment">; --- Print a single character in A ---</span>
+<span class="label">print_char</span>:
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; ROM: print character in A</span>
+    <span class="keyword">RET</span>
+
+<span class="comment">; --- Print null-terminated string at HL ---</span>
+<span class="label">print_string</span>:
+    <span class="keyword">LD</span> A, (HL)
+    <span class="keyword">OR</span> A                <span class="comment">; Check for null terminator</span>
+    <span class="keyword">RET</span> Z               <span class="comment">; Return if end of string</span>
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; ROM: print character</span>
+    <span class="keyword">INC</span> HL
+    <span class="keyword">JR</span> print_string
+
+<span class="comment">; --- Print 8-bit unsigned number in A (0-255) ---</span>
+<span class="label">print_number</span>:
+    <span class="keyword">PUSH</span> BC
+    <span class="keyword">LD</span> B, 0
+    <span class="keyword">LD</span> C, A             <span class="comment">; BC = the number</span>
+    <span class="keyword">CALL</span> <span class="number">0x2D28</span>         <span class="comment">; ROM: STACK_BC - push onto calculator stack</span>
+    <span class="keyword">CALL</span> <span class="number">0x2DE3</span>         <span class="comment">; ROM: PRINT_FP - print the number</span>
+    <span class="keyword">POP</span> BC
+    <span class="keyword">RET</span>
+
+<span class="comment">; =============================================================</span>
+<span class="comment">; END OF DEBUG ROUTINES</span>
+<span class="comment">; =============================================================</span></code></pre>
+<h2 id="how-to-use-it">How to Use It</h2>
+<p class="bold-text">Here is a complete example program that uses the debug routines to verify some arithmetic and conditional logic. Save this as test.asm and assemble it with:</p>
+<pre><code>pasmo --tapbas test.asm test.tap</code></pre>
+<p>Then load test.tap in your emulator (e.g. Fuse). The BASIC loader created by --tapbas will auto-run the program.</p>
+<pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
+
+    <span class="comment">; --- Main program ---</span>
+    <span class="keyword">CALL</span> debug_init
+
+    <span class="comment">; Test 1: Print a string</span>
+    <span class="keyword">LD</span> HL, msg_hello
+    <span class="keyword">CALL</span> print_string
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+    <span class="comment">; Test 2: Do some maths and print the result</span>
+    <span class="keyword">LD</span> A, 25
+    <span class="keyword">ADD</span> A, 17           <span class="comment">; 25 + 17 = 42</span>
+    <span class="keyword">CALL</span> print_number   <span class="comment">; Should display 42</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+    <span class="comment">; Test 3: Conditional logic - print PASS or FAIL</span>
+    <span class="keyword">LD</span> A, 42
+    <span class="keyword">CP</span> 42               <span class="comment">; Is A equal to 42?</span>
+    <span class="keyword">JP</span> NZ, test_fail
+    <span class="keyword">LD</span> HL, msg_pass
+    <span class="keyword">CALL</span> print_string
+    <span class="keyword">JP</span> test_done
+<span class="label">test_fail</span>:
+    <span class="keyword">LD</span> HL, msg_fail
+    <span class="keyword">CALL</span> print_string
+<span class="label">test_done</span>:
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span>
+
+    <span class="keyword">RET</span>                  <span class="comment">; Return to BASIC</span>
+
+<span class="label">msg_hello</span>:  <span class="directive">DB</span> <span class="string">"Debug output test"</span>, 0
+<span class="label">msg_pass</span>:   <span class="directive">DB</span> <span class="string">"Test PASSED"</span>, 0
+<span class="label">msg_fail</span>:   <span class="directive">DB</span> <span class="string">"Test FAILED"</span>, 0
+
+    <span class="directive">INCLUDE</span> <span class="string">"debug_output.asm"</span>
+
+    <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+<p>When you run this program in an emulator, you should see:</p>
+<p>Debug output test</p>
+<p>42</p>
+<p>Test PASSED</p>
+<p>This confirms your arithmetic produced 42 and the conditional check passed. You can now use these routines anywhere in your code to inspect register values, verify calculations, and trace program flow.</p>
+</section>
+
+
+</body>
+</html>
