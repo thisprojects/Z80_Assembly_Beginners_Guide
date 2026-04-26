@@ -128,6 +128,7 @@ tr.highlight-row {
 <li><a href="#introduction">Introduction</a></li>
 <li><a href="#debug-output-routines">Debug Output Routines</a></li>
 <ul>
+<li><a href="#setting-up-editor">Setting Up Your Editor</a></li>
 <li><a href="#debug-init">debug_init</a></li>
 <li><a href="#debug-print-char">print_char</a></li>
 <li><a href="#debug-print-string">print_string</a></li>
@@ -258,6 +259,37 @@ tr.highlight-row {
 <p>Throughout this guide, examples use three simple routines to display values on screen. These are your equivalent of console.log() or print() — a way to see what your code is actually doing. When you add two numbers and want to check the result, or need to verify that a conditional branch went the right way, these routines let you print the answer to the screen.</p>
 <p>The routines use the ZX Spectrum ROM, so they work immediately with Pasmo&#x27;s --tapbas flag. Save the code below as debug_output.asm and include it in your programs with INCLUDE &quot;debug_output.asm&quot;, or paste it directly at the end of your source files.</p>
 <p>Don&#x27;t worry if some of the assembly instructions below are unfamiliar — they are all explained in detail in the chapters that follow. For now, the important thing is understanding what each routine does and how to call it.</p>
+
+<h2 id="setting-up-editor">Setting Up Your Editor</h2>
+<p>Before you write your first line of assembly, it helps to have an editor that understands Z80 syntax. <a href="https://code.visualstudio.com/" target="_blank">Visual Studio Code</a> is a free, cross-platform editor that works well for this guide. Download and install it from <code>https://code.visualstudio.com/</code> for Windows, macOS, or Linux.</p>
+<p>Once VS Code is installed, add the <strong>Z80 Assembly</strong> extension by <strong>Imanolea</strong>. It provides syntax highlighting for <code>.asm</code> files — coloured keywords, register names, directives, and comments — making your source code much easier to read and navigate.</p>
+<p>To install it:</p>
+<ol>
+<li>Open VS Code and press <kbd>Ctrl+Shift+X</kbd> (Windows/Linux) or <kbd>Cmd+Shift+X</kbd> (macOS) to open the Extensions panel.</li>
+<li>Search for <strong>Z80 Assembly</strong>.</li>
+<li>Select the extension published by <strong>Imanolea</strong> and click <strong>Install</strong>.</li>
+</ol>
+<p>Alternatively, install it from the command line:</p>
+<pre><code>code --install-extension imanolea.z80-asm</code></pre>
+<p>With the extension active, <code>.asm</code> files will have coloured keywords, register names, and comments.</p>
+
+<h3>Assembling with Pasmo</h3>
+<p>Every example in this guide is assembled using Pasmo with the <code>--tapbas</code> flag. This flag wraps your machine code in a TAP file with an auto-running BASIC loader, so the Spectrum loads and starts your program immediately when the tape is played. Without it you would have to type <code>RANDOMIZE USR 32768</code> manually every time.</p>
+<p>The general form of the command is:</p>
+<pre><code>pasmo --tapbas program.asm program.tap</code></pre>
+<p>For example, to assemble a file called <code>hello.asm</code>:</p>
+<pre><code>pasmo --tapbas hello.asm hello.tap</code></pre>
+<p>If Pasmo finds an error it will print the offending line number and a short message. Fix the error and re-run the command. When assembly succeeds with no output, your <code>.tap</code> file is ready.</p>
+
+<h3>Running with Fuse</h3>
+<p>Fuse is a cycle-accurate ZX Spectrum emulator. Once you have a <code>.tap</code> file, pass it directly to Fuse on the command line and it will auto-load the tape:</p>
+<pre><code>fuse --tape program.tap --auto-load</code></pre>
+<p>So for the example above:</p>
+<pre><code>fuse --tape hello.tap --auto-load</code></pre>
+<p>Fuse opens, plays the tape, the BASIC loader runs, and your program starts. The output from your debug routines appears on the emulated screen. Close the Fuse window when you are done, edit your source file, re-assemble with Pasmo, and run again.</p>
+<p>Your typical edit–assemble–run cycle from the terminal therefore looks like this:</p>
+<pre><code>pasmo --tapbas hello.asm hello.tap &amp;&amp; fuse --tape hello.tap --auto-load</code></pre>
+<p>Chaining the commands with <code>&amp;&amp;</code> means Fuse only launches if Pasmo succeeds — a failed assembly stops the chain before the emulator opens.</p>
 
 <h2 id="debug-init">debug_init</h2>
 <p>The ZX Spectrum can send output to different destinations — the main screen, the lower screen (where INPUT prompts appear), or a printer. The Spectrum calls these &#x27;channels&#x27; and numbers them: channel 1 is the lower screen, channel 2 is the main screen, and channel 3 is the printer. Before you can print anything, you must tell the Spectrum which channel to use.</p>
