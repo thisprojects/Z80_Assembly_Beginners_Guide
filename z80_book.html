@@ -514,6 +514,107 @@ tr.highlight-row {
     <span class="keyword">LD</span> A, 13
     <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Newline</span></code></pre>
 <p class="bold-text">Key Difference: There&#x27;s no type checking, no automatic conversion, no protection. If you write a 16-bit value to an 8-bit location, you&#x27;ll overwrite whatever&#x27;s next in memory. You must track what&#x27;s stored where.</p>
+
+<h3 id="loading-storing-example">Try It Yourself</h3>
+<p>Copy the program below into VS Code, save it as <code>variables.asm</code> in the same folder as <code>debug_output.asm</code>, then assemble and run it. It loads and displays each of the four data types defined above so you can see exactly what gets stored where.</p>
+<p>Note that <code>my_word</code> is a 16-bit value (1000 = 0x03E8) stored as two separate bytes in memory — the low byte (232) first, then the high byte (3). <code>print_number</code> only handles 8-bit values, so we read and display each byte individually using <code>my_word</code> for the low byte and <code>my_word + 1</code> for the high byte. This is a useful trick for inspecting 16-bit values during development.</p>
+<p>For the array, we cannot simply load HL with the base address and walk forward with <code>INC HL</code>, because the ROM routines called inside <code>print_number</code> use HL internally and leave it pointing somewhere else — so any pointer you stored in HL is gone by the time the call returns. The fix is to <em>preserve</em> HL across each call using the stack. <code>PUSH HL</code> saves HL's current value onto the stack before the call, and <code>POP HL</code> restores it afterwards. Then <code>INC HL</code> advances the pointer to the next element as normal. This push-call-pop pattern is the standard Z80 technique for protecting a register across a subroutine call that might clobber it.</p>
+<pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
+
+    <span class="keyword">CALL</span> debug_init          <span class="comment">; Open the screen channel (do this first)</span>
+
+    <span class="comment">; --- my_byte (a single 8-bit value: 42) ---</span>
+    <span class="keyword">LD</span> HL, label_byte
+    <span class="keyword">CALL</span> print_string        <span class="comment">; Print label</span>
+    <span class="keyword">LD</span> A, (my_byte)          <span class="comment">; Load the byte from memory</span>
+    <span class="keyword">CALL</span> print_number        <span class="comment">; Prints: 42</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Newline</span>
+
+    <span class="comment">; --- my_word (16-bit value: 1000, shown as two bytes) ---</span>
+    <span class="keyword">LD</span> HL, label_word_lo
+    <span class="keyword">CALL</span> print_string        <span class="comment">; Print label</span>
+    <span class="keyword">LD</span> A, (my_word)          <span class="comment">; Low byte of 1000 = 232 (0xE8)</span>
+    <span class="keyword">CALL</span> print_number        <span class="comment">; Prints: 232</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Newline</span>
+    <span class="keyword">LD</span> HL, label_word_hi
+    <span class="keyword">CALL</span> print_string        <span class="comment">; Print label</span>
+    <span class="keyword">LD</span> A, (my_word + 1)      <span class="comment">; High byte of 1000 = 3 (0x03)</span>
+    <span class="keyword">CALL</span> print_number        <span class="comment">; Prints: 3</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Newline</span>
+
+    <span class="comment">; --- my_string (null-terminated: "Hello") ---</span>
+    <span class="keyword">LD</span> HL, label_str
+    <span class="keyword">CALL</span> print_string        <span class="comment">; Print label</span>
+    <span class="keyword">LD</span> HL, my_string
+    <span class="keyword">CALL</span> print_string        <span class="comment">; Prints: Hello</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Newline</span>
+
+    <span class="comment">; --- my_array (5 consecutive bytes: 1 2 3 4 5) ---</span>
+    <span class="comment">; PUSH HL before each print_number call to protect our pointer,</span>
+    <span class="comment">; POP HL after to restore it, then INC HL to advance to the next element.</span>
+    <span class="keyword">LD</span> HL, label_arr
+    <span class="keyword">CALL</span> print_string        <span class="comment">; Print label</span>
+    <span class="keyword">LD</span> HL, my_array          <span class="comment">; Point HL at the first element</span>
+    <span class="keyword">LD</span> A, (HL)
+    <span class="keyword">PUSH</span> HL                  <span class="comment">; Save HL — print_number will clobber it</span>
+    <span class="keyword">CALL</span> print_number        <span class="comment">; Prints: 1</span>
+    <span class="keyword">POP</span> HL                   <span class="comment">; Restore HL so we know where we are</span>
+    <span class="keyword">LD</span> A, 32
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Space</span>
+    <span class="keyword">INC</span> HL                   <span class="comment">; Advance to element 2</span>
+    <span class="keyword">LD</span> A, (HL)
+    <span class="keyword">PUSH</span> HL
+    <span class="keyword">CALL</span> print_number        <span class="comment">; Prints: 2</span>
+    <span class="keyword">POP</span> HL
+    <span class="keyword">LD</span> A, 32
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Space</span>
+    <span class="keyword">INC</span> HL                   <span class="comment">; Advance to element 3</span>
+    <span class="keyword">LD</span> A, (HL)
+    <span class="keyword">PUSH</span> HL
+    <span class="keyword">CALL</span> print_number        <span class="comment">; Prints: 3</span>
+    <span class="keyword">POP</span> HL
+    <span class="keyword">LD</span> A, 32
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Space</span>
+    <span class="keyword">INC</span> HL                   <span class="comment">; Advance to element 4</span>
+    <span class="keyword">LD</span> A, (HL)
+    <span class="keyword">PUSH</span> HL
+    <span class="keyword">CALL</span> print_number        <span class="comment">; Prints: 4</span>
+    <span class="keyword">POP</span> HL
+    <span class="keyword">LD</span> A, 32
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Space</span>
+    <span class="keyword">INC</span> HL                   <span class="comment">; Advance to element 5</span>
+    <span class="keyword">LD</span> A, (HL)
+    <span class="keyword">CALL</span> print_number        <span class="comment">; Prints: 5 (no PUSH/POP needed — we're done with HL)</span>
+    <span class="keyword">LD</span> A, 13
+    <span class="keyword">RST</span> <span class="number">0x10</span>                 <span class="comment">; Newline</span>
+
+    <span class="keyword">RET</span>                      <span class="comment">; Return to BASIC</span>
+
+<span class="comment">; --- Data ---</span>
+<span class="label">my_byte</span>:   <span class="directive">DB</span> 42
+<span class="label">my_word</span>:   <span class="directive">DW</span> 1000
+<span class="label">my_string</span>: <span class="directive">DB</span> <span class="string">"Hello"</span>, 0
+<span class="label">my_array</span>:  <span class="directive">DB</span> 1, 2, 3, 4, 5
+
+<span class="comment">; --- Output labels ---</span>
+<span class="label">label_byte</span>:    <span class="directive">DB</span> <span class="string">"my_byte:    "</span>, 0
+<span class="label">label_word_lo</span>: <span class="directive">DB</span> <span class="string">"my_word lo: "</span>, 0
+<span class="label">label_word_hi</span>: <span class="directive">DB</span> <span class="string">"my_word hi: "</span>, 0
+<span class="label">label_str</span>:     <span class="directive">DB</span> <span class="string">"my_string:  "</span>, 0
+<span class="label">label_arr</span>:     <span class="directive">DB</span> <span class="string">"my_array:   "</span>, 0
+
+    <span class="directive">INCLUDE</span> <span class="string">"debug_output.asm"</span>
+    <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+<p>Expected output on screen:</p>
+<pre><code>my_byte:    42
+my_word lo: 232
+my_word hi: 3
+my_string:  Hello
+my_array:   1 2 3 4 5</code></pre>
 </section>
 
 <section id="3-operators-expressions">
