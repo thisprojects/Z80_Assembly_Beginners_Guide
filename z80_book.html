@@ -666,6 +666,69 @@ my_array:  1 2 3 4 5</code></pre>
     <span class="keyword">CALL</span> print_number    <span class="comment">; Should display 30</span></code></pre>
 <p>Notice there&#x27;s no multiply instruction for simple multiplication. For multiplying by 2, you add the value to itself or use shift instructions. For general multiplication, you must implement it with loops or lookup tables.</p>
 <p class="bold-text">Key Difference: The Z80 has no MUL or DIV instructions. Multiplication and division must be implemented in software, typically through repeated addition/subtraction or clever use of shifts. This is why early games often used powers of 2 for sizes and speeds.</p>
+
+<h3 id="bitwise-try-it">Try It Yourself</h3>
+<p>Copy the program below into VS Code, save it as <code>bitwise.asm</code> alongside <code>debug_output.asm</code>, then assemble and run it. Rather than just printing numbers, this example uses AND and OR to directly manipulate the ZX Spectrum's <strong>attribute memory</strong> — producing a visible effect on screen.</p>
+<p>Every character cell on the Spectrum screen has a corresponding attribute byte in memory, starting at address <code>0x5800</code>. The byte packs four pieces of information into a single 8-bit value:</p>
+<pre><code><span class="comment">; Bit 7   Bit 6   Bit 5  Bit 4  Bit 3   Bit 2  Bit 1  Bit 0</span>
+<span class="comment">; Flash   Bright  Paper  Paper  Paper   Ink    Ink    Ink</span>
+<span class="comment">;</span>
+<span class="comment">; Flash=1  — the cell alternates between ink and paper colours at 50Hz</span>
+<span class="comment">; Bright=1 — makes both colours more vivid</span>
+<span class="comment">; Paper (bits 5:3) — background colour 0-7</span>
+<span class="comment">; Ink   (bits 2:0) — character colour 0-7</span></code></pre>
+<p>This is exactly the kind of problem AND and OR are designed for. <strong>OR</strong> sets specific bits to 1 without touching anything else — perfect for switching a flag on. <strong>AND</strong> clears specific bits to 0 without touching anything else — perfect for switching a flag off. The colour bits are never disturbed because only the flag bits are included in the mask.</p>
+<p><code>CALL 0x0DAF</code> is the Spectrum ROM's CLS routine. It clears the screen and moves the cursor to position (0, 0), so we know our text will land at attribute address <code>0x5800</code>. Without it, text would appear wherever the BASIC loader left the cursor, and we would not know which attribute cells to modify.</p>
+<pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
+
+    <span class="keyword">CALL</span> <span class="number">0x0DAF</span>              <span class="comment">; ROM: CLS — clear screen, cursor to (0,0)</span>
+    <span class="keyword">CALL</span> debug_init          <span class="comment">; Open screen channel</span>
+
+    <span class="keyword">LD</span> HL, msg
+    <span class="keyword">CALL</span> print_string        <span class="comment">; "FLASH!" appears at the top of the screen</span>
+
+    <span class="comment">; Use OR to set FLASH (bit 7) and BRIGHT (bit 6) on each of the 6 characters.</span>
+    <span class="comment">; OR %11000000 forces both bits to 1 without touching the colour bits.</span>
+
+    <span class="keyword">LD</span> A, (<span class="number">0x5800</span>)
+    <span class="keyword">OR</span> <span class="number">%11000000</span>             <span class="comment">; Set Flash + Bright on 'F'</span>
+    <span class="keyword">LD</span> (<span class="number">0x5800</span>), A
+
+    <span class="keyword">LD</span> A, (<span class="number">0x5801</span>)
+    <span class="keyword">OR</span> <span class="number">%11000000</span>             <span class="comment">; Set Flash + Bright on 'L'</span>
+    <span class="keyword">LD</span> (<span class="number">0x5801</span>), A
+
+    <span class="keyword">LD</span> A, (<span class="number">0x5802</span>)
+    <span class="keyword">OR</span> <span class="number">%11000000</span>             <span class="comment">; Set Flash + Bright on 'A'</span>
+    <span class="keyword">LD</span> (<span class="number">0x5802</span>), A
+
+    <span class="keyword">LD</span> A, (<span class="number">0x5803</span>)
+    <span class="keyword">OR</span> <span class="number">%11000000</span>             <span class="comment">; Set Flash + Bright on 'S'</span>
+    <span class="keyword">LD</span> (<span class="number">0x5803</span>), A
+
+    <span class="keyword">LD</span> A, (<span class="number">0x5804</span>)
+    <span class="keyword">OR</span> <span class="number">%11000000</span>             <span class="comment">; Set Flash + Bright on 'H'</span>
+    <span class="keyword">LD</span> (<span class="number">0x5804</span>), A
+
+    <span class="keyword">LD</span> A, (<span class="number">0x5805</span>)
+    <span class="keyword">OR</span> <span class="number">%11000000</span>             <span class="comment">; Set Flash + Bright on '!'</span>
+    <span class="keyword">LD</span> (<span class="number">0x5805</span>), A
+
+    <span class="comment">; Now use AND to clear just the FLASH bit (bit 7) on the first character.</span>
+    <span class="comment">; AND %01111111 forces bit 7 to 0 while leaving everything else unchanged.</span>
+    <span class="comment">; 'F' stops flashing but stays bright — the rest of the word keeps flashing.</span>
+
+    <span class="keyword">LD</span> A, (<span class="number">0x5800</span>)
+    <span class="keyword">AND</span> <span class="number">%01111111</span>            <span class="comment">; Clear Flash on 'F' only</span>
+    <span class="keyword">LD</span> (<span class="number">0x5800</span>), A
+
+    <span class="keyword">RET</span>                      <span class="comment">; Return to BASIC</span>
+
+<span class="label">msg</span>: <span class="directive">DB</span> <span class="string">"FLASH!"</span>, 0
+
+    <span class="directive">INCLUDE</span> <span class="string">"debug_output.asm"</span>
+    <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+<p>You should see <strong>FLASH!</strong> appear at the top of the screen. The letters LASH! will flash between white-on-black and black-on-white at 50 times per second. The leading F will stay steady — it has Bright set (via OR) but Flash cleared (via AND). That difference in behaviour is caused by a single bit in the attribute byte.</p>
 </section>
 
 <section id="4-control-flow-conditionals">
