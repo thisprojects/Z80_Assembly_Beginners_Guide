@@ -826,7 +826,7 @@ my_array:  1 2 3 4 5</code></pre>
 <span class="label">var_a</span>: <span class="directive">DB</span> 10
 <span class="label">var_b</span>: <span class="directive">DB</span> 0
 
-    <span class="keyword">INCLUDE</span> <span class="string">"debug.asm"</span>
+    <span class="keyword">INCLUDE</span> <span class="string">"debug_output.asm"</span>
     <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
 <p>For greater-than or less-than comparisons, you use CP and check the carry and sign flags. After CP B, the carry flag is set if A &lt; B (unsigned), and you can combine checks for signed comparisons.</p>
 <p class="bold-text">Key Difference: There&#x27;s no implicit &#x27;else&#x27; structure. You must explicitly jump over blocks you don&#x27;t want to execute. Every branch is a goto by another name. The structure exists only in how you lay out your labels and jumps.</p>
