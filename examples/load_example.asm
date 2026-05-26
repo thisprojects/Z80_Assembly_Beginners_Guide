@@ -10,20 +10,6 @@
     LD A, 13
     RST 0x10                 ; Newline
 
-    ; --- my_word (16-bit value: 1000, shown as two bytes) ---
-    LD HL, label_word_lo
-    CALL print_string        ; Print label
-    LD A, (my_word)          ; Low byte of 1000 = 232 (0xE8)
-    CALL print_number        ; Prints: 232
-    LD A, 13
-    RST 0x10                 ; Newline
-    LD HL, label_word_hi
-    CALL print_string        ; Print label
-    LD A, (my_word + 1)      ; High byte of 1000 = 3 (0x03)
-    CALL print_number        ; Prints: 3
-    LD A, 13
-    RST 0x10                 ; Newline
-
     ; --- my_string (null-terminated: "Hello") ---
     LD HL, label_str
     CALL print_string        ; Print label
@@ -75,16 +61,13 @@
 
 ; --- Data ---
 my_byte:   DB 42
-my_word:   DW 1000
 my_string: DB "Hello", 0
 my_array:  DB 1, 2, 3, 4, 5
 
 ; --- Output labels ---
-label_byte:    DB "my_byte:    ", 0
-label_word_lo: DB "my_word lo: ", 0
-label_word_hi: DB "my_word hi: ", 0
-label_str:     DB "my_string:  ", 0
-label_arr:     DB "my_array:   ", 0
+label_byte: DB "my_byte:   ", 0
+label_str:  DB "my_string: ", 0
+label_arr:  DB "my_array:  ", 0
 
     INCLUDE "debug_output.asm"
     END 0x8000
