@@ -924,6 +924,35 @@ my_array:  1 2 3 4 5</code></pre>
 <p>After this, the array in memory is: <code>4, 10, 20, 30, 60</code> — the length byte has been updated to 4 and the new value sits at the end.</p>
 <p class="bold-text">There is no bounds checking. If you add more elements than you reserved space for, you will silently overwrite whatever comes next in memory — other variables, other code, anything. There is no error, no warning. It is entirely your responsibility to check the length before adding and make sure you do not exceed the reserved space.</p>
 <p class="bold-text">Key Difference: Infinite loops are trivially easy—just JP back to a label with no exit condition. There&#x27;s no for-each; you manually track the pointer and count. Off-by-one errors are common and unforgiving.</p>
+
+<h3 id="loops-try-it">Try It Yourself</h3>
+<p>Copy the program below into VS Code, save it as <code>loops.asm</code>, then assemble and run it. It cycles the screen border through all eight colours, holding each one for half a second so you can see it change. It uses both loop patterns from this section at the same time: a DJNZ inner loop for the delay, and a while-style outer loop to step through the colours.</p>
+<p>The border colour is controlled by hardware port <code>0xFE</code>. Writing a value to it with <code>OUT (0xFE), A</code> sets the border immediately — bits 2:0 of A select the colour (0=black, 1=blue, 2=red, 3=magenta, 4=green, 5=cyan, 6=yellow, 7=white). You will see this instruction again in the Hardware chapter; for now, just treat it as "set border to the colour number in A".</p>
+<p><code>HALT</code> suspends the CPU until the next hardware interrupt. The Spectrum fires an interrupt 50 times per second, so each <code>HALT</code> waits roughly 20ms. Looping 25 times gives a half-second pause between colour changes — long enough to see each one clearly.</p>
+<pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
+
+    <span class="keyword">LD</span> C, 0              <span class="comment">; C = current border colour, starting at 0</span>
+
+<span class="label">colour_loop</span>:
+    <span class="keyword">LD</span> A, C
+    <span class="keyword">OUT</span> (<span class="number">0xFE</span>), A        <span class="comment">; Set the border to colour C</span>
+
+    <span class="comment">; Inner DJNZ loop: 25 HALTs x 20ms each = ~0.5 seconds</span>
+    <span class="keyword">LD</span> B, 25
+<span class="label">delay_loop</span>:
+    <span class="keyword">HALT</span>                 <span class="comment">; Wait for the next interrupt (~20ms)</span>
+    <span class="keyword">DJNZ</span> delay_loop      <span class="comment">; Repeat 25 times</span>
+
+    <span class="comment">; Advance to the next colour and loop while C &lt; 8</span>
+    <span class="keyword">INC</span> C
+    <span class="keyword">LD</span> A, C
+    <span class="keyword">CP</span> 8                 <span class="comment">; Have we shown all 8 colours (0-7)?</span>
+    <span class="keyword">JP</span> NZ, colour_loop   <span class="comment">; No — go back for the next one</span>
+
+    <span class="keyword">RET</span>                  <span class="comment">; Yes — all colours shown, return to BASIC</span>
+
+    <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
+<p>The border should step through black, blue, red, magenta, green, cyan, yellow, and white, spending about half a second on each. Notice how the two loops nest: the outer <code>colour_loop</code> runs 8 times driven by the <code>CP 8 / JP NZ</code> condition, and each pass through it runs the inner <code>delay_loop</code> 25 times via DJNZ before moving to the next colour.</p>
 </section>
 
 <section id="6-functions">
