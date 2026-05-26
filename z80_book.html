@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>An Introduction to Z80 Assembly Language: A Guide for High-Level Programmers</title>
+<title>An Introduction to Z80 Assembly Language: A Guide for Modern Programmers</title>
 <style>
 :root {
     --bg: #1a1a2e;
@@ -287,7 +287,7 @@ tr.highlight-row {
 <p>So for the example above:</p>
 <pre><code>fuse --tape hello.tap --auto-load</code></pre>
 <p>Fuse opens, plays the tape, the BASIC loader runs, and your program starts. The output from your debug routines appears on the emulated screen. Close the Fuse window when you are done, edit your source file, re-assemble with Pasmo, and run again.</p>
-<p>Your typical edit–assemble–run cycle from the terminal therefore looks like this:</p>
+<p>Your typical edit–assemble–run cycle from the terminal therefore looks like this (on Linux / Mac systems):</p>
 <pre><code>pasmo --tapbas hello.asm hello.tap &amp;&amp; fuse --tape hello.tap --auto-load</code></pre>
 <p>Chaining the commands with <code>&amp;&amp;</code> means Fuse only launches if Pasmo succeeds — a failed assembly stops the chain before the emulator opens.</p>
 
@@ -307,7 +307,7 @@ tr.highlight-row {
     <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; Print whatever character is in A</span>
     <span class="keyword">RET</span>                 <span class="comment">; Return to the caller</span></code></pre>
 <p>To use it, load the character into A first, then call:</p>
-<pre><code>    <span class="keyword">LD</span> A, &#x27<span class="comment">;*&#x27;            ; Put ASCII code for &#x27;*&#x27; into A</span>
+<pre><code>    <span class="keyword">LD</span> A, &#x27<span class="comment">*&#x27;            ; Put ASCII code for &#x27;*&#x27; into A</span>
     <span class="keyword">CALL</span> print_char      <span class="comment">; Prints: *</span></code></pre>
 <p>For a newline, load 13 (carriage return) into A and call RST 0x10 directly — there is no need for a separate routine when it is just two instructions:</p>
 <pre><code>    <span class="keyword">LD</span> A, 13             <span class="comment">; 13 = carriage return</span>
@@ -361,6 +361,55 @@ tr.highlight-row {
     <span class="keyword">CALL</span> print_number    <span class="comment">; Prints: 42</span></code></pre>
 
 <h2 id="using-the-routines">Putting It All Together</h2>
+<p>Before you can call the routines, you need to create the file they live in. Open VS Code, paste the code below into a new file, and save it as <code>debug_output.asm</code> in the same folder as your programs. Every example in this guide that uses <code>INCLUDE "debug_output.asm"</code> expects this file to be there.</p>
+<pre><code><span class="comment">; =============================================================</span>
+<span class="comment">; debug_output.asm - Debug Display Routines for ZX Spectrum</span>
+<span class="comment">; =============================================================</span>
+<span class="comment">; INCLUDE this file in your program or copy the routines below.</span>
+<span class="comment">;</span>
+<span class="comment">; Call debug_init once at the start of your program to set up</span>
+<span class="comment">; the screen channel. Then use:</span>
+<span class="comment">;</span>
+<span class="comment">;   print_char    - Print a single character.  Input: A = char</span>
+<span class="comment">;   print_string  - Print a null-terminated string.  Input: HL</span>
+<span class="comment">;   print_number  - Print an 8-bit number (0-255).  Input: A</span>
+<span class="comment">;</span>
+<span class="comment">; For a newline, just do: LD A, 13 / RST 0x10</span>
+<span class="comment">; =============================================================</span>
+
+<span class="comment">; --- Call once at program start to open screen channel ---</span>
+<span class="label">debug_init</span>:
+    <span class="keyword">LD</span> A, 2             <span class="comment">; Channel 2 = main screen</span>
+    <span class="keyword">CALL</span> <span class="number">0x1601</span>         <span class="comment">; ROM: open channel</span>
+    <span class="keyword">RET</span>
+
+<span class="comment">; --- Print a single character in A ---</span>
+<span class="label">print_char</span>:
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; ROM: print character in A</span>
+    <span class="keyword">RET</span>
+
+<span class="comment">; --- Print null-terminated string at HL ---</span>
+<span class="label">print_string</span>:
+    <span class="keyword">LD</span> A, (HL)
+    <span class="keyword">OR</span> A                <span class="comment">; Check for null terminator</span>
+    <span class="keyword">RET</span> Z               <span class="comment">; Return if end of string</span>
+    <span class="keyword">RST</span> <span class="number">0x10</span>            <span class="comment">; ROM: print character</span>
+    <span class="keyword">INC</span> HL
+    <span class="keyword">JR</span> print_string
+
+<span class="comment">; --- Print 8-bit unsigned number in A (0-255) ---</span>
+<span class="label">print_number</span>:
+    <span class="keyword">PUSH</span> BC
+    <span class="keyword">LD</span> B, 0
+    <span class="keyword">LD</span> C, A             <span class="comment">; BC = the number</span>
+    <span class="keyword">CALL</span> <span class="number">0x2D28</span>         <span class="comment">; ROM: STACK_BC - push onto calculator stack</span>
+    <span class="keyword">CALL</span> <span class="number">0x2DE3</span>         <span class="comment">; ROM: PRINT_FP - print the number</span>
+    <span class="keyword">POP</span> BC
+    <span class="keyword">RET</span>
+
+<span class="comment">; =============================================================</span>
+<span class="comment">; END OF DEBUG ROUTINES</span>
+<span class="comment">; =============================================================</span></code></pre>
 <p>Call debug_init once at the start of your program. After that, use the three routines freely. Here is a complete program:</p>
 <pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
 
@@ -399,7 +448,7 @@ tr.highlight-row {
 <p class="bold-text">Pasmo is a portable Z80 cross-assembler. When you use the --tapbas flag, it produces a .tap file that includes a BASIC loader program. This loader automatically runs your machine code when the tape is loaded, so you don&#x27;t need to manually POKE addresses or type RANDOMIZE USR commands.</p>
 <p class="bold-text">Emulator: For ZX Spectrum development, Fuse is excellent and freely available for all major operating systems. It loads .tap files directly.</p>
 <h2 id="your-workflow">Your Workflow</h2>
-<p>The development cycle is simple. Write your assembly code in a .asm file. Assemble it with Pasmo. Load the resulting .tap file in Fuse. Here is how that looks:</p>
+<p>The development cycle is simple. Write your assembly code in a .asm file. Assemble it with Pasmo. Load the resulting .tap file in Fuse. The below example is similar to the 'print_char' method we created above. Here is how that looks:</p>
 <pre><code><span class="comment">; Save this as first.asm</span>
     <span class="directive">ORG</span> <span class="number">0x8000</span>           <span class="comment">; Code starts at address 32768</span>
 
@@ -410,9 +459,11 @@ tr.highlight-row {
     <span class="keyword">RET</span>                  <span class="comment">; Return to BASIC</span>
 
     <span class="directive">END</span> <span class="number">0x8000</span>           <span class="comment">; Entry point for BASIC loader</span></code></pre>
-<p>Assemble and run:</p>
+<p>Assemble:</p>
 <pre><code>pasmo --tapbas first.asm first.tap</code></pre>
-<p>Then open first.tap in Fuse. The BASIC loader runs automatically, executing your code. You should see an asterisk printed on screen.</p>
+<p>Then open first.tap in Fuse.</p> 
+<pre><code>fuse --tap first.tap --auto-load</code></pre>
+<p>The BASIC loader runs automatically, executing your code. You should see an asterisk printed on screen.</p>
 <p class="bold-text">The ORG 0x8000 directive tells the assembler where your code will live in memory (address 32768, safely above the Spectrum&#x27;s BASIC area). The END 0x8000 directive tells Pasmo&#x27;s BASIC loader what address to call with RANDOMIZE USR. RET at the end returns control back to BASIC.</p>
 <p class="bold-text">Key Difference: There&#x27;s no operating system in the traditional sense. The ZX Spectrum ROM provides some useful routines (like printing characters), but when your program ends with RET, control returns to the Spectrum&#x27;s BASIC interpreter. If you use HALT instead, the processor stops and you must reset the machine.</p>
 </section>
