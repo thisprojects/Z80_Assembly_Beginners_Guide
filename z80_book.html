@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>An Introduction to Z80 Assembly Language: A Guide for Modern Programmers</title>
+<title>An Introduction to Z80 Assembly Language: A Guide for High-Level Programmers</title>
 <style>
 :root {
     --bg: #1a1a2e;
@@ -352,7 +352,7 @@ tr.highlight-row {
     <span class="keyword">PUSH</span> BC              <span class="comment">; Save BC so we don&#x27;t destroy the caller&#x27;s values</span>
     <span class="keyword">LD</span> B, 0              <span class="comment">; High byte = 0 (our number is only 8-bit)</span>
     <span class="keyword">LD</span> C, A              <span class="comment">; Low byte = the number we want to print</span>
-    <span class="keyword">CALL</span> <span class="number">0x2D28</span>          <span class="comment">; ROM routine: takes BC and prepares it for printing</span>
+    <span class="keyword">CALL</span> <span class="number">0x2D2B</span>          <span class="comment">; ROM routine: takes BC and prepares it for printing</span>
     <span class="keyword">CALL</span> <span class="number">0x2DE3</span>          <span class="comment">; ROM routine: prints the number as decimal digits</span>
     <span class="keyword">POP</span> BC               <span class="comment">; Restore BC to its original value</span>
     <span class="keyword">RET</span>                  <span class="comment">; Return to the caller</span></code></pre>
@@ -402,7 +402,7 @@ tr.highlight-row {
     <span class="keyword">PUSH</span> BC
     <span class="keyword">LD</span> B, 0
     <span class="keyword">LD</span> C, A             <span class="comment">; BC = the number</span>
-    <span class="keyword">CALL</span> <span class="number">0x2D28</span>         <span class="comment">; ROM: STACK_BC - push onto calculator stack</span>
+    <span class="keyword">CALL</span> <span class="number">0x2D2B</span>         <span class="comment">; ROM: STACK-BC - push BC onto calculator stack</span>
     <span class="keyword">CALL</span> <span class="number">0x2DE3</span>         <span class="comment">; ROM: PRINT_FP - print the number</span>
     <span class="keyword">POP</span> BC
     <span class="keyword">RET</span>
@@ -462,10 +462,10 @@ tr.highlight-row {
 <p>Assemble:</p>
 <pre><code>pasmo --tapbas first.asm first.tap</code></pre>
 <p>Then open first.tap in Fuse.</p> 
-<pre><code>fuse --tap first.tap --auto-load</code></pre>
+<pre><code>fuse --tape first.tap --auto-load</code></pre>
 <p>The BASIC loader runs automatically, executing your code. You should see an asterisk printed on screen.</p>
 <p class="bold-text">The ORG 0x8000 directive tells the assembler where your code will live in memory (address 32768, safely above the Spectrum&#x27;s BASIC area). The END 0x8000 directive tells Pasmo&#x27;s BASIC loader what address to call with RANDOMIZE USR. RET at the end returns control back to BASIC.</p>
-<p class="bold-text">Key Difference: There&#x27;s no operating system in the traditional sense. The ZX Spectrum ROM provides some useful routines (like printing characters), but when your program ends with RET, control returns to the Spectrum&#x27;s BASIC interpreter. If you use HALT instead, the processor stops and you must reset the machine.</p>
+<p class="bold-text">Key Difference: There&#x27;s no operating system in the traditional sense. The ZX Spectrum ROM provides some useful routines (like printing characters), but when your program ends with RET, control returns to the Spectrum&#x27;s BASIC interpreter. If you use HALT instead, the processor pauses until the next interrupt (50 times a second) and then carries on with the next instruction, so a HALT at the end of your code just runs on into whatever bytes follow it. To stop for good you need an endless loop, or <code>DI</code> followed by <code>HALT</code>, and then you must reset the machine.</p>
 </section>
 
 <section id="2-variables-data-types">
@@ -633,10 +633,13 @@ my_array:  1 2 3 4 5</code></pre>
 <p><strong>AND</strong> — a bit in the result is 1 only if that bit is 1 in <em>both</em> inputs. If either bit is 0, the result is 0. This is useful for masking out bits you don't care about. For example, AND with 00001111 keeps only the lower four bits and clears the upper four.</p>
 <pre><code>    <span class="comment">; Reading the keyboard on the Spectrum returns a byte where</span>
     <span class="comment">; each bit represents a key (0 = pressed, 1 = not pressed).</span>
-    <span class="comment">; To check just bit 0 (the outermost key), mask off everything else:</span>
+    <span class="comment">; To check just bit 0 (the outermost key), mask off everything else.</span>
+    <span class="comment">; The value in A when IN runs selects which half-row of keys is read;</span>
+    <span class="comment">; 0xFE selects the bottom-left row, where bit 0 is CAPS SHIFT:</span>
+    <span class="keyword">LD</span> A, <span class="number">0xFE</span>           <span class="comment">; Select the CAPS SHIFT - V half-row</span>
     <span class="keyword">IN</span> A, (<span class="number">0xFE</span>)          <span class="comment">; Read keyboard port</span>
     <span class="keyword">AND</span> <span class="number">%00000001</span>        <span class="comment">; Keep only bit 0, all other bits become 0</span>
-    <span class="comment">; A is now either 0 (key pressed) or 1 (key not pressed)</span></code></pre>
+    <span class="comment">; A is now either 0 (CAPS SHIFT pressed) or 1 (not pressed)</span></code></pre>
 <p><strong>OR</strong> — a bit in the result is 1 if that bit is 1 in <em>either</em> input (or both). The only way a bit ends up 0 is if it is 0 in both inputs. This is useful for setting specific bits without disturbing the others.</p>
 <pre><code>    <span class="comment">; The Spectrum screen attributes byte controls ink, paper, bright and flash.</span>
     <span class="comment">; To turn on BRIGHT (bit 6) without changing the colours:</span>
@@ -673,7 +676,7 @@ my_array:  1 2 3 4 5</code></pre>
 <pre><code><span class="comment">; Bit 7   Bit 6   Bit 5  Bit 4  Bit 3   Bit 2  Bit 1  Bit 0</span>
 <span class="comment">; Flash   Bright  Paper  Paper  Paper   Ink    Ink    Ink</span>
 <span class="comment">;</span>
-<span class="comment">; Flash=1  — the cell alternates between ink and paper colours at 50Hz</span>
+<span class="comment">; Flash=1  — the cell swaps its ink and paper colours about 3 times a second</span>
 <span class="comment">; Bright=1 — makes both colours more vivid</span>
 <span class="comment">; Paper (bits 5:3) — background colour 0-7</span>
 <span class="comment">; Ink   (bits 2:0) — character colour 0-7</span></code></pre>
@@ -728,7 +731,7 @@ my_array:  1 2 3 4 5</code></pre>
 
     <span class="directive">INCLUDE</span> <span class="string">"debug_output.asm"</span>
     <span class="directive">END</span> <span class="number">0x8000</span></code></pre>
-<p>You should see <strong>FLASH!</strong> appear at the top of the screen. The letters LASH! will flash between white-on-black and black-on-white at 50 times per second. The leading F will stay steady — it has Bright set (via OR) but Flash cleared (via AND). That difference in behaviour is caused by a single bit in the attribute byte.</p>
+<p>You should see <strong>FLASH!</strong> appear at the top of the screen. The letters LASH! will flash, swapping between black-on-white and white-on-black about three times a second (the ROM flips FLASH every 16 frames). The leading F will stay steady — it has Bright set (via OR) but Flash cleared (via AND). That difference in behaviour is caused by a single bit in the attribute byte.</p>
 </section>
 
 <section id="4-control-flow-conditionals">
@@ -744,7 +747,7 @@ my_array:  1 2 3 4 5</code></pre>
 <p class="bold-text">Z (Zero): Set if the result was zero.</p>
 <p class="bold-text">C (Carry): Set when a result does not fit in 8 bits. For addition, the carry flag is set if the result exceeds 255 — for example, 200 + 100 = 300, which is too large for a single byte, so the carry flag is set and A wraps around to 44 (300 - 256). For subtraction, the carry flag is set if the result would go below 0 — for example, 10 - 20 = -10, which is not a valid unsigned number, so the carry flag is set and A wraps around to 246 (256 - 10). Think of it as the CPU's way of saying "the answer didn't fit" — you can then check the carry flag to detect the overflow, or use ADC and SBC (explained below) to carry the extra bit into the next byte of a multi-byte calculation.</p>
 <p>The carry flag is also used by two special arithmetic instructions: <strong>ADC</strong> (Add with Carry) and <strong>SBC</strong> (Subtract with Carry). These add or subtract as normal, but also include the carry flag in the calculation. This is how you do maths on numbers larger than 255 — the carry flag acts as the "1" you carry over when adding columns of digits by hand.</p>
-<p>Suppose you want to add two 16-bit numbers stored as pairs of bytes (low byte first, as the Z80 stores them). A single ADD can only handle 8 bits, so you add the low bytes first, then add the high bytes <em>with carry</em> to pick up any overflow from the first addition:</p>
+<p>Suppose you want to add two numbers whose sum may not fit in a byte, and keep the result as a 16-bit value split across two registers (high byte in B, low byte in C). A single ADD can only handle 8 bits, so you add the low parts first, then use ADC to add the high parts <em>with carry</em> and pick up any overflow from the first addition:</p>
 <pre><code><span class="comment">; Adding 200 + 100 = 300</span>
 <span class="comment">; These fit in single bytes, but their sum does not</span>
 
@@ -767,11 +770,25 @@ my_array:  1 2 3 4 5</code></pre>
     <span class="keyword">ADC</span> A, 0             <span class="comment">; 0 + 0 + carry(0) = 0</span>
     <span class="keyword">LD</span> B, A              <span class="comment">; Result: B = 0, C = 80 → just 80</span></code></pre>
 <p>This time the low bytes added up to 80, which fits in a single byte, so the carry flag stayed clear. ADC added 0 + 0 + 0 = 0, and the high byte remained zero. The same code handles both cases correctly — the carry flag automatically propagates the overflow when it happens and does nothing when it doesn't.</p>
+<p>The same two-step idea adds two genuine 16-bit numbers, one held in HL and one in DE. Add the low bytes with ADD, then the high bytes with ADC so that a carry out of the low byte is included:</p>
+
+<pre><code><span class="comment">; HL = HL + DE using 8-bit instructions (500 + 300 = 800)</span>
+    <span class="keyword">LD</span> HL, 500           <span class="comment">; H = 1, L = 244</span>
+    <span class="keyword">LD</span> DE, 300           <span class="comment">; D = 1, E = 44</span>
+    <span class="keyword">LD</span> A, L
+    <span class="keyword">ADD</span> A, E             <span class="comment">; 244 + 44 = 288: A = 32, carry SET</span>
+    <span class="keyword">LD</span> L, A
+    <span class="keyword">LD</span> A, H
+    <span class="keyword">ADC</span> A, D             <span class="comment">; 1 + 1 + carry(1) = 3</span>
+    <span class="keyword">LD</span> H, A              <span class="comment">; HL = 3 * 256 + 32 = 800</span></code></pre>
+
+<p>The Z80 also has a single <code>ADD HL, DE</code> that does all of this in one instruction. The long form is shown so you can see how the carry flag links the two halves.</p>
+
 <p><strong>SBC</strong> works the same way but for subtraction — it subtracts the value <em>and</em> the carry flag. This handles the "borrow" when the low byte subtraction needs to take 1 from the high byte.</p>
 <p class="bold-text">S (Sign): Set if the result was negative (bit 7 is 1).</p>
 <p class="bold-text">P/V (Parity/Overflow): Context-dependent—parity for logic ops, overflow for arithmetic.</p>
 <h3 id="conditional-jumps">Conditional Jumps</h3>
-<p>Jump instructions send execution to a <strong>label</strong> — a name you give to a specific point in your code, written as a word followed by a colon (e.g. <code>my_label:</code>). The assembler converts the label into a memory address for you. Labels are covered in more detail in the <a href="#6-functions">Functions</a> section.</p>
+<p>Jump instructions send execution to a <strong>label</strong> — a name you give to a specific point in your code, written as a word followed by a colon (e.g. <code>my_label:</code>). The assembler converts the label into a memory address for you. Labels also name subroutines, as you will see in the <a href="#6-functions">Functions</a> section.</p>
 <pre><code>    <span class="keyword">JP</span> Z, label          <span class="comment">; Jump if zero flag is set</span>
     <span class="keyword">JP</span> NZ, label         <span class="comment">; Jump if zero flag is NOT set</span>
     <span class="keyword">JP</span> C, label          <span class="comment">; Jump if carry flag is set</span>
@@ -846,7 +863,7 @@ my_array:  1 2 3 4 5</code></pre>
 <span class="label">loop_start</span>:
     <span class="comment">; ... loop body ...</span>
     <span class="keyword">DJNZ</span> loop_start      <span class="comment">; Decrement B, jump if B != 0</span></code></pre>
-<p>This is the assembly equivalent of for (int i = 10; i &gt; 0; i--). Note that it counts down, not up, and always uses the B register.</p>
+<p>This is the assembly equivalent of for (int i = 10; i &gt; 0; i--). Note that it counts down, not up, and always uses the B register. It also decrements <em>before</em> testing, so if B is 0 when the loop starts, B wraps to 255 and the body runs 256 times. Check for zero first if the count can be zero.</p>
 <h3 id="while-loop">While Loop</h3>
 <p>A while loop tests a condition at the top and repeats until that condition is false. Here is the general pattern — it loads the variable from memory on every iteration, checks it, does the work, stores it back, and loops:</p>
 <pre><code><span class="comment">; while (a != 0) { a--; }</span>
@@ -860,7 +877,7 @@ my_array:  1 2 3 4 5</code></pre>
 <span class="label">while_end</span>:
 
 <span class="label">var_a</span>: <span class="directive">DB</span> 5              <span class="comment">; Starting value — the loop will run 5 times</span></code></pre>
-<p>Notice that A is loaded from memory <em>every time</em> around the loop. Why? Because the Z80 cannot compare or decrement a value directly in memory — it can only work on registers. So the pattern is always: load from memory, work on it in a register, store it back.</p>
+<p>Notice that A is loaded from memory <em>every time</em> around the loop. Why? Because the Z80 cannot work on a memory location named by a label directly — <code>CP (var_a)</code> and <code>DEC (var_a)</code> do not exist. Only the pointer forms <code>(HL)</code>, <code>(IX+d)</code> and <code>(IY+d)</code> can be used with instructions like <code>DEC (HL)</code> or <code>CP (HL)</code>. So when the variable lives at a label, the pattern is: load from memory, work on it in a register, store it back.</p>
 <p>In this simple case, though, that reload is wasteful. After DEC A, the register already holds the updated value — there is no need to store it and immediately load it again. A more efficient version keeps everything in A and only touches memory at the start and end:</p>
 <pre><code><span class="comment">; Same result, but faster — no unnecessary memory access inside the loop</span>
     <span class="keyword">LD</span> A, (var_a)        <span class="comment">; Load once before the loop</span>
@@ -927,7 +944,7 @@ my_array:  1 2 3 4 5</code></pre>
 
 <h3 id="loops-try-it">Try It Yourself</h3>
 <p>Copy the program below into VS Code, save it as <code>loops.asm</code>, then assemble and run it. It cycles the screen border through all eight colours, holding each one for half a second so you can see it change. It uses both loop patterns from this section at the same time: a DJNZ inner loop for the delay, and a while-style outer loop to step through the colours.</p>
-<p>The border colour is controlled by hardware port <code>0xFE</code>. Writing a value to it with <code>OUT (0xFE), A</code> sets the border immediately — bits 2:0 of A select the colour (0=black, 1=blue, 2=red, 3=magenta, 4=green, 5=cyan, 6=yellow, 7=white). You will see this instruction again in the Hardware chapter; for now, just treat it as "set border to the colour number in A".</p>
+<p>The border colour is controlled by hardware port <code>0xFE</code>. Writing a value to it with <code>OUT (0xFE), A</code> sets the border immediately — bits 2:0 of A select the colour (0=black, 1=blue, 2=red, 3=magenta, 4=green, 5=cyan, 6=yellow, 7=white). Ports are how the Z80 talks to hardware outside its memory; the Input &amp; Output chapter shows the matching <code>IN</code> instruction reading the keyboard. For now, just treat it as "set border to the colour number in A".</p>
 <p><code>HALT</code> suspends the CPU until the next hardware interrupt. The Spectrum fires an interrupt 50 times per second, so each <code>HALT</code> waits roughly 20ms. Looping 25 times gives a half-second pause between colour changes — long enough to see each one clearly.</p>
 <pre><code>    <span class="directive">ORG</span> <span class="number">0x8000</span>
 
@@ -1115,7 +1132,7 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
 <pre><code><span class="comment">; Fill ZX Spectrum screen with a pattern</span>
     <span class="keyword">LD</span> HL, 16384        <span class="comment">; Screen memory start</span>
     <span class="keyword">LD</span> DE, 16385
-    <span class="keyword">LD</span> BC, 6144          <span class="comment">; Screen size in bytes</span>
+    <span class="keyword">LD</span> BC, 6143          <span class="comment">; Screen size minus 1: the first byte is set by LD (HL), 255 below</span>
     <span class="keyword">LD</span> (HL), 255         <span class="comment">; Fill pattern</span>
     <span class="keyword">LDIR</span>                 <span class="comment">; Block copy (fills screen)</span></code></pre>
 <h3 id="keyboard-input">Keyboard Input</h3>
@@ -1146,7 +1163,17 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
     <span class="keyword">LD</span> A, B
     <span class="keyword">CP</span> 0                 <span class="comment">; Check for divide by zero</span>
     <span class="keyword">JP</span> Z, div_error
-    <span class="comment">; ... perform division ...</span>
+    <span class="keyword">LD</span> D, 0              <span class="comment">; D = quotient so far</span>
+<span class="label">div_loop</span>:
+    <span class="keyword">LD</span> A, C
+    <span class="keyword">CP</span> B                 <span class="comment">; Is what's left smaller than the divisor?</span>
+    <span class="keyword">JR</span> C, div_done       <span class="comment">; Yes - finished</span>
+    <span class="keyword">SUB</span> B                <span class="comment">; Take one divisor off the dividend</span>
+    <span class="keyword">LD</span> C, A
+    <span class="keyword">INC</span> D                <span class="comment">; ...and count it</span>
+    <span class="keyword">JR</span> div_loop
+<span class="label">div_done</span>:
+    <span class="keyword">LD</span> A, D              <span class="comment">; A = quotient</span>
     <span class="keyword">OR</span> A                 <span class="comment">; Clear carry (success)</span>
     <span class="keyword">RET</span>
 
@@ -1224,6 +1251,7 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
 <span class="label">msg_assert</span>: <span class="directive">DB</span> <span class="string">"ASSERT FAIL! A = "</span>, 0</code></pre>
 <h3 id="common-bug-sources">Common Bug Sources</h3>
 <p>Off-by-one errors in loops (DJNZ counts from n to 1, not n-1 to 0)</p>
+<p>Starting a DJNZ loop with B = 0: B is decremented before it is tested, so 0 wraps to 255 and the loop runs 256 times, not zero</p>
 <p>Forgetting to preserve registers across subroutine calls</p>
 <p>Stack imbalance (more pushes than pops, or vice versa)</p>
 <p>Little-endian confusion in 16-bit values</p>
@@ -1413,15 +1441,15 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
 <td>Print string of BC bytes from DE</td>
 </tr>
 <tr>
-<td><code>0x0D6B</code></td>
+<td><code>0x0DAF</code></td>
 <td>CLS</td>
 <td>(none)</td>
-<td>Clear screen</td>
+<td>Clear screen and home the cursor (BASIC's CLS at <code>0x0D6B</code> also clears, but leaves the lower-screen channel selected, so open channel 2 again afterwards)</td>
 </tr>
 <tr>
 <td><code>0x0DD9</code></td>
 <td>CL-SET</td>
-<td>B = row (0&ndash;23), C = col (0&ndash;31)</td>
+<td>B = 24 &minus; row, C = 33 &minus; col (row 0&ndash;23, col 0&ndash;31)</td>
 <td>Set print position (AT equivalent)</td>
 </tr>
 </tbody>
@@ -1449,7 +1477,7 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
 <td><code>0x15D4</code></td>
 <td>WAIT-KEY</td>
 <td>A = key code</td>
-<td>Wait for a keypress and return it</td>
+<td>Wait for a keypress and return it (channel 1, the keyboard, must be open)</td>
 </tr>
 </tbody>
 </table>
@@ -1469,7 +1497,7 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
 <tr>
 <td><code>0x03B5</code></td>
 <td>BEEPER</td>
-<td>DE = pitch, HL = duration</td>
+<td>HL = pitch (period), DE = duration (cycles)</td>
 <td>Play a tone through the beeper</td>
 </tr>
 </tbody>
@@ -1537,8 +1565,9 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
 <span class="keyword">CALL</span> <span class="number">0x1601</span>
 
 <span class="comment">; Set print position to row 10, column 5</span>
-<span class="keyword">LD</span> B, 10             <span class="comment">; row (0-23)</span>
-<span class="keyword">LD</span> C, 5              <span class="comment">; column (0-31)</span>
+<span class="comment">; CL-SET counts from the bottom-right: B = 24 - row, C = 33 - column</span>
+<span class="keyword">LD</span> B, 24 - 10        <span class="comment">; row 10 (B = 24 - row)</span>
+<span class="keyword">LD</span> C, 33 - 5         <span class="comment">; column 5 (C = 33 - column)</span>
 <span class="keyword">CALL</span> <span class="number">0x0DD9</span>          <span class="comment">; CL-SET: position the cursor</span>
 
 <span class="comment">; Now print a message at that position</span>
@@ -1589,12 +1618,19 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
 <span class="keyword">LD</span> BC, prompt_len
 <span class="keyword">CALL</span> <span class="number">0x203C</span>
 
-<span class="comment">; Wait for a keypress</span>
+<span class="comment">; Wait for a keypress.  WAIT-KEY only works on the keyboard channel</span>
+<span class="comment">; (channel 1), so switch to it first and back to the screen afterwards</span>
+<span class="keyword">LD</span> A, 1
+<span class="keyword">CALL</span> <span class="number">0x1601</span>
 <span class="keyword">CALL</span> <span class="number">0x15D4</span>          <span class="comment">; WAIT-KEY: blocks until key pressed</span>
                      <span class="comment">; key code returned in A</span>
+<span class="keyword">PUSH</span> AF               <span class="comment">; keep the key while we switch channel</span>
+<span class="keyword">LD</span> A, 2
+<span class="keyword">CALL</span> <span class="number">0x1601</span>          <span class="comment">; back to the main screen</span>
+<span class="keyword">POP</span> AF
 
 <span class="comment">; Print the key that was pressed</span>
-<span class="keyword">RST</span> <span class="number">0x10</span>             <span class="comment">; print it (A still holds the key)</span>
+<span class="keyword">RST</span> <span class="number">0x10</span>             <span class="comment">; print it</span>
 
 <span class="keyword">RET</span>
 
@@ -1606,13 +1642,13 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
 
 <h3 id="example-6-play-a-beep">Example 6: Play a Beep</h3>
 
-<p>Use the BEEPER ROM routine to play a tone. The pitch and duration values take some experimentation &mdash; lower DE values give higher pitched notes:</p>
+<p>Use the BEEPER ROM routine to play a tone. The pitch and duration values take some experimentation &mdash; lower HL values give higher pitched notes:</p>
 
 <pre><code><span class="directive">ORG</span> <span class="number">0x8000</span>
 
 <span class="comment">; Play a beep</span>
-<span class="keyword">LD</span> HL, <span class="number">0x00C0</span>        <span class="comment">; duration (higher = longer)</span>
-<span class="keyword">LD</span> DE, <span class="number">0x0040</span>        <span class="comment">; pitch (lower = higher pitch)</span>
+<span class="keyword">LD</span> HL, <span class="number">0x00C0</span>        <span class="comment">; pitch (lower = higher pitch)</span>
+<span class="keyword">LD</span> DE, <span class="number">0x0040</span>        <span class="comment">; duration (higher = longer)</span>
 <span class="keyword">CALL</span> <span class="number">0x03B5</span>          <span class="comment">; BEEPER routine</span>
 
 <span class="keyword">RET</span>
@@ -1700,7 +1736,7 @@ PLAYER_LIVES <span class="directive">EQU</span> 5    <span class="comment">; Off
     <span class="keyword">PUSH</span> BC
     <span class="keyword">LD</span> B, 0
     <span class="keyword">LD</span> C, A             <span class="comment">; BC = the number</span>
-    <span class="keyword">CALL</span> <span class="number">0x2D28</span>         <span class="comment">; ROM: STACK_BC - push onto calculator stack</span>
+    <span class="keyword">CALL</span> <span class="number">0x2D2B</span>         <span class="comment">; ROM: STACK-BC - push BC onto calculator stack</span>
     <span class="keyword">CALL</span> <span class="number">0x2DE3</span>         <span class="comment">; ROM: PRINT_FP - print the number</span>
     <span class="keyword">POP</span> BC
     <span class="keyword">RET</span>

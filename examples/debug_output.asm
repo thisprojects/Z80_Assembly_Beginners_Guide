@@ -38,7 +38,7 @@ print_number:
     PUSH BC
     LD B, 0
     LD C, A             ; BC = the number
-    CALL 0x2D28         ; ROM: STACK_BC - push onto calculator stack
+    CALL 0x2D2B         ; ROM: STACK-BC - push BC onto calculator stack
     CALL 0x2DE3         ; ROM: PRINT_FP - print the number
     POP BC
     RET
