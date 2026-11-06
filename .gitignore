@@ -5,4 +5,4 @@ tools/
 *.gb
 *.sym
 *.map
-DS_Store
+.DS_Store
